@@ -94,7 +94,7 @@ modifier dataset without independent research and qualified clinical review.
 | `trigger` | String. A canonical special-condition key that activates the modifier. |
 | `applies_when_fired` | Array of the exact core category strings to which the modifier may apply. |
 | `action` | String. A source-supported educational action or review flag. |
-| `priority_override` | String. When an override is used, it must use an allowed uppercase priority value and be source-supported. |
+| `priority_override` | String. Use `NONE` when the modifier must not change the core software priority; otherwise use an allowed uppercase priority value and require independent source support. |
 | `protocol_reference` | String. A source title plus an exact recommendation, section, or page reference where possible. |
 
 The modifier schema does not create a new trauma category. A modifier adjusts

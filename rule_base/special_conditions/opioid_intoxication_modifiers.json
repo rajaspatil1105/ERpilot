@@ -1,0 +1,14 @@
+{
+  "modifiers": [
+    {
+      "modifier_id": "OPI-01",
+      "trigger": "opioid_intoxication_documented_or_suspected",
+      "applies_when_fired": [
+        "brain_trauma"
+      ],
+      "action": "Flag documented or suspected opioid intoxication so depressed consciousness is not attributed to intoxication without clinician review for important head injury.",
+      "priority_override": "NONE",
+      "protocol_reference": "NICE NG232, recommendation 1.4.2: https://www.nice.org.uk/guidance/ng232/chapter/recommendations"
+    }
+  ]
+}

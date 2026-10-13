@@ -1,0 +1,17 @@
+{
+  "modifiers": [
+    {
+      "modifier_id": "ALG-01",
+      "trigger": "anesthesia_allergy_documented",
+      "applies_when_fired": [
+        "brain_trauma",
+        "chest_trauma",
+        "abdominal_trauma",
+        "orthopedic_trauma"
+      ],
+      "action": "Flag documented anaesthesia allergy status for clinician review and preserve it separately from other adverse drug reactions; do not infer a specific reaction or contraindication.",
+      "priority_override": "NONE",
+      "protocol_reference": "NICE CG183, recommendation 1.2.5: https://www.nice.org.uk/guidance/cg183/chapter/recommendations"
+    }
+  ]
+}

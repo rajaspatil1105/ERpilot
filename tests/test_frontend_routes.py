@@ -78,6 +78,22 @@ def test_assessment_page_uses_canonical_keys_and_preserves_unknown_state(client)
     assert 'fetch("/api/triage"' in script
 
 
+def test_assessment_page_exposes_separate_modifier_evidence(client):
+    page = client.get("/assessment").get_data(as_text=True)
+    script = client.get("/static/js/assessment.js").get_data(as_text=True)
+
+    for key in (
+        "pregnancy_status_documented_pregnant",
+        "anticoagulant_treatment_documented",
+        "opioid_intoxication_documented_or_suspected",
+        "anesthesia_allergy_documented",
+    ):
+        assert key in page
+    assert "modifier_evidence" in script
+    assert '=== "special_condition"' in script
+    assert ".symptom-card:not(.modifier-card)" in script
+
+
 def test_stage_6_categories_are_enabled_by_assessment_script(client):
     page = client.get("/assessment").get_data(as_text=True)
     script = client.get("/static/js/assessment.js").get_data(as_text=True)
@@ -112,6 +128,8 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     ):
         assert field in script
     assert "No rule matched the recorded evidence" in script
+    assert "modifier_result" in script
+    assert 'id="modifier-rules"' in page
 
 
 def test_existing_patient_and_triage_api_endpoints_remain_available(client):

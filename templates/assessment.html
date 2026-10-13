@@ -37,7 +37,8 @@
                         {% endfor %}
                     </select>
                     <div class="form-text">
-                        Only brain trauma has an implemented rule set in this prototype.
+                        Core trauma categories and special-condition modifiers are
+                        evaluated separately. Unavailable categories remain disabled.
                     </div>
                 </div>
             </div>
@@ -52,6 +53,7 @@
         </p>
         <div id="symptom-list" class="row g-3">
             {% for symptom in symptoms %}
+            {% if symptom.category != "special_condition" %}
             <div class="col-md-6">
                 <article class="card symptom-card h-100">
                     <div class="card-body">
@@ -99,6 +101,68 @@
                     </div>
                 </article>
             </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </fieldset>
+
+    <fieldset class="mb-4">
+        <legend class="h2">Special-condition modifiers</legend>
+        <p class="text-muted">
+            Record only documented or clinician-suspected special conditions.
+            Unknown remains unknown and does not fire a modifier.
+        </p>
+        <div id="modifier-list" class="row g-3">
+            {% for symptom in symptoms %}
+            {% if symptom.category == "special_condition" %}
+            <div class="col-md-6">
+                <article class="card symptom-card modifier-card h-100">
+                    <div class="card-body">
+                        <h3 class="h5">{{ symptom.label }}</h3>
+                        <p class="small text-muted mb-3">
+                            {{ symptom.description }}
+                        </p>
+                        <div
+                            class="btn-group evidence-buttons"
+                            role="group"
+                            aria-label="Evidence state for {{ symptom.label }}"
+                        >
+                            <button
+                                class="btn btn-outline-success state-button"
+                                type="button"
+                                data-key="{{ symptom.key }}"
+                                data-state="PRESENT"
+                            >
+                                Present
+                            </button>
+                            <button
+                                class="btn btn-outline-danger state-button"
+                                type="button"
+                                data-key="{{ symptom.key }}"
+                                data-state="ABSENT"
+                            >
+                                Absent
+                            </button>
+                            <button
+                                class="btn btn-outline-secondary state-button state-selected"
+                                type="button"
+                                data-key="{{ symptom.key }}"
+                                data-state="UNKNOWN"
+                                aria-pressed="true"
+                            >
+                                Unknown
+                            </button>
+                        </div>
+                        <div
+                            class="small mt-2 evidence-status"
+                            data-status-for="{{ symptom.key }}"
+                        >
+                            Recorded state: UNKNOWN
+                        </div>
+                    </div>
+                </article>
+            </div>
+            {% endif %}
             {% endfor %}
         </div>
     </fieldset>

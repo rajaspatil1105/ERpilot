@@ -206,11 +206,12 @@ appropriate clinical assessment.
 
 This is a concise paraphrase of the supplied finding, not a quotation.
 
-### Proposed ERPilot research area
+### Stage 7 implementation note
 
-- Pregnancy special-condition modifier.
-- Review flags for applicable chest-trauma and abdominal-trauma outputs.
-- Source-backed documentation of imaging considerations.
+The Stage 7 pregnancy modifier uses this source only to flag documented
+pregnancy for clinician review of applicable imaging considerations. It does
+not prohibit imaging, mandate imaging, assign a department, or override a
+core software priority.
 
 ### Limitations and safety boundary
 
@@ -285,3 +286,64 @@ The implementation deliberately excludes numerical haemodynamic thresholds,
 imaging orders, diagnoses, treatment instructions, open-fracture management,
 and clinician-performed examination findings that cannot be established by
 this application. Unknown evidence remains distinct from absent evidence.
+
+## 8. Stage 7 special-condition modifiers
+
+Modifiers are evaluated separately from the selected core trauma rule file.
+They are additive review flags: they do not suppress, replace, or rewrite the
+core `FULL_MATCH`, `PARTIAL_MATCH`, or `NO_MATCH` outcome. `NONE` in a
+modifier's `priority_override` field explicitly means that the core software
+priority is unchanged. These are provisional educational mappings, not
+validated clinical triage classifications.
+
+### Pregnancy
+
+- **PREG-01** uses the documented trigger
+  `pregnancy_status_documented_pregnant`.
+- Source: ACOG Committee Opinion 723, *Guidelines for Diagnostic Imaging
+  During Pregnancy and Lactation*:
+  <https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2017/10/guidelines-for-diagnostic-imaging-during-pregnancy-and-lactation>
+- The source supports clinician review of imaging choices and does not support
+  a blanket prohibition or automatic mandate. Pregnancy is therefore a
+  review modifier only, with no priority override.
+
+### Anticoagulant treatment
+
+- **AC-01** uses the distinct documented trigger
+  `anticoagulant_treatment_documented` and applies only to `brain_trauma`.
+- Source: NICE, *Head injury: assessment and early management* (NG232),
+  recommendation 1.5.13:
+  <https://www.nice.org.uk/guidance/ng232/chapter/recommendations>
+- The rule flags documented anticoagulant treatment for clinician review of
+  the applicable head-injury guidance. It does not infer medication use from
+  symptoms, encode a drug-specific threshold, issue an imaging order, or
+  override the core priority.
+
+### Narcotic/opioid intoxication
+
+- **OPI-01** uses the documented-or-clinician-suspected trigger
+  `opioid_intoxication_documented_or_suspected` and applies only to
+  `brain_trauma`.
+- Source: NICE NG232, recommendation 1.4.2:
+  <https://www.nice.org.uk/guidance/ng232/chapter/recommendations>
+- The rule flags the context so depressed consciousness is not attributed to
+  intoxication without clinician review for important head injury. It does not
+  diagnose intoxication and does not infer it from a symptom or medication
+  field.
+
+### Allergy information
+
+- **ALG-01** uses `anesthesia_allergy_documented` and applies to all four
+  core trauma categories.
+- Source: NICE, *Drug allergy: diagnosis and management* (CG183),
+  recommendation 1.2.5:
+  <https://www.nice.org.uk/guidance/cg183/chapter/recommendations>
+- The rule flags documented anaesthesia allergy status for review and
+  preserves the distinction between an explicit `ABSENT` state (documented
+  absence), `PRESENT` (documented allergy), and `UNKNOWN` (unresolved
+  status). It does not infer a reaction or contraindication.
+
+No priority override is encoded for any Stage 7 modifier. The implementation
+deliberately omits unsupported drug-specific anticoagulant thresholds,
+pregnancy imaging thresholds, opioid treatment instructions, allergy-specific
+procedures, and automatic dispositions.

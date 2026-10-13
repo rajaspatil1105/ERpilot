@@ -58,7 +58,7 @@
 
     function updateCategorySymptoms() {
         const category = categorySelect.value;
-        document.querySelectorAll(".symptom-card").forEach((card) => {
+        document.querySelectorAll(".symptom-card:not(.modifier-card)").forEach((card) => {
             const key = card.querySelector(".state-button")?.dataset.key;
             card.closest(".col-md-6").hidden = (
                 symptomCategories.get(key) !== category
@@ -201,6 +201,11 @@
             evidence: Object.fromEntries(
                 Object.entries(states).filter(
                     ([key]) => symptomCategories.get(key) === categorySelect.value,
+                ),
+            ),
+            modifier_evidence: Object.fromEntries(
+                Object.entries(states).filter(
+                    ([key]) => symptomCategories.get(key) === "special_condition",
                 ),
             ),
             vitals,

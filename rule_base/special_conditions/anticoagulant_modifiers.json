@@ -1,0 +1,14 @@
+{
+  "modifiers": [
+    {
+      "modifier_id": "AC-01",
+      "trigger": "anticoagulant_treatment_documented",
+      "applies_when_fired": [
+        "brain_trauma"
+      ],
+      "action": "Flag documented anticoagulant treatment for clinician review of the applicable head-injury guidance; do not treat unknown or absent medication evidence as anticoagulant use.",
+      "priority_override": "NONE",
+      "protocol_reference": "NICE NG232, recommendation 1.5.13: https://www.nice.org.uk/guidance/ng232/chapter/recommendations"
+    }
+  ]
+}

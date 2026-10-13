@@ -1,0 +1,17 @@
+{
+  "modifiers": [
+    {
+      "modifier_id": "PREG-01",
+      "trigger": "pregnancy_status_documented_pregnant",
+      "applies_when_fired": [
+        "brain_trauma",
+        "chest_trauma",
+        "abdominal_trauma",
+        "orthopedic_trauma"
+      ],
+      "action": "Flag documented pregnancy for clinician review of applicable imaging considerations; pregnancy alone does not prohibit necessary imaging.",
+      "priority_override": "NONE",
+      "protocol_reference": "ACOG Committee Opinion 723, Guidelines for Diagnostic Imaging During Pregnancy and Lactation, imaging statement: https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2017/10/guidelines-for-diagnostic-imaging-during-pregnancy-and-lactation"
+    }
+  ]
+}

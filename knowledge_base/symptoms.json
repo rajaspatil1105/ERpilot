@@ -88,6 +88,38 @@
       "evidence_type": "documented_procedure_context",
       "description": "A documented reduction of a fracture or dislocation, or application of a cast, splint, or traction, requiring neurovascular documentation.",
       "source_reference": "NICE NG38, recommendation 1.5.7"
+    },
+    {
+      "key": "pregnancy_status_documented_pregnant",
+      "label": "Documented pregnancy",
+      "category": "special_condition",
+      "evidence_type": "documented_special_condition",
+      "description": "Pregnancy documented by the clinical team; pregnancy alone does not prohibit necessary imaging.",
+      "source_reference": "ACOG Committee Opinion 723"
+    },
+    {
+      "key": "anticoagulant_treatment_documented",
+      "label": "Documented anticoagulant treatment",
+      "category": "special_condition",
+      "evidence_type": "documented_medication_status",
+      "description": "Anticoagulant treatment documented by the clinical team; medication status is not inferred from symptoms.",
+      "source_reference": "NICE NG232, recommendation 1.5.9"
+    },
+    {
+      "key": "opioid_intoxication_documented_or_suspected",
+      "label": "Documented or suspected opioid intoxication",
+      "category": "special_condition",
+      "evidence_type": "documented_or_clinician_suspected_condition",
+      "description": "Opioid intoxication documented or suspected by the clinical team; it is not inferred from a symptom alone.",
+      "source_reference": "NICE NG232, recommendation 1.4.2"
+    },
+    {
+      "key": "anesthesia_allergy_documented",
+      "label": "Documented anaesthesia allergy",
+      "category": "special_condition",
+      "evidence_type": "documented_allergy_status",
+      "description": "Anaesthesia allergy status documented by the clinical team. ABSENT represents a documented absence; UNKNOWN represents an unresolved status.",
+      "source_reference": "NICE CG183, recommendation 1.2.5"
     }
   ]
 }

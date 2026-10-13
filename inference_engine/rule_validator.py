@@ -15,7 +15,12 @@ ALLOWED_CATEGORIES = {
     "abdominal_trauma",
     "orthopedic_trauma",
 }
+SPECIAL_CONDITION_CATEGORY = "special_condition"
+ALLOWED_SYMPTOM_CATEGORIES = ALLOWED_CATEGORIES | {
+    SPECIAL_CONDITION_CATEGORY,
+}
 ALLOWED_PRIORITIES = {"RED", "ORANGE", "YELLOW", "GREEN"}
+NO_PRIORITY_OVERRIDE = "NONE"
 EXPECTED_BRAIN_RULE_IDS = {f"BT-{number:02d}" for number in range(1, 8)}
 PROTOCOL_URL = (
     "https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
@@ -24,6 +29,10 @@ PROTOCOL_URLS = {
     PROTOCOL_URL,
     "https://www.nice.org.uk/guidance/ng39/chapter/Recommendations",
     "https://www.nice.org.uk/guidance/ng38/chapter/Recommendations",
+    "https://www.nice.org.uk/guidance/ng232/chapter/recommendations",
+    "https://www.nice.org.uk/guidance/cg183/chapter/recommendations",
+    "https://www.acog.org/clinical/clinical-guidance/committee-opinion/"
+    "articles/2017/10/guidelines-for-diagnostic-imaging-during-pregnancy-and-lactation",
 }
 
 SYMPTOM_FIELDS = {
@@ -43,6 +52,14 @@ RULE_FIELDS = {
     "priority_flag",
     "suggested_department",
     "checklist_action",
+    "protocol_reference",
+}
+MODIFIER_FIELDS = {
+    "modifier_id",
+    "trigger",
+    "applies_when_fired",
+    "action",
+    "priority_override",
     "protocol_reference",
 }
 SNAKE_CASE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
@@ -91,7 +108,7 @@ def validate_symptoms(data: Any, source: str | Path = "symptoms.json") -> set[st
         if key in symptom_keys:
             raise ValidationError(f"{location}.key: duplicate symptom key {key!r}")
         symptom_keys.add(key)
-        if symptom["category"] not in ALLOWED_CATEGORIES:
+        if symptom["category"] not in ALLOWED_SYMPTOM_CATEGORIES:
             raise ValidationError(
                 f"{location}.category: invalid category "
                 f"{symptom['category']!r}"
@@ -250,6 +267,108 @@ def validate_core_rules(
     return validated_rules
 
 
+def validate_modifiers(
+    data: Any,
+    symptom_keys: set[str],
+    source: str | Path = "modifiers.json",
+) -> list[dict[str, Any]]:
+    """Validate special-condition modifiers against the canonical vocabulary."""
+
+    source_name = str(source)
+    _require_mapping(data, source_name)
+    _require_exact_fields(data, {"modifiers"}, source_name)
+    modifiers = data["modifiers"]
+    if not isinstance(modifiers, list):
+        raise ValidationError(f"{source_name}.modifiers: expected a list")
+
+    modifier_ids: set[str] = set()
+    validated_modifiers: list[dict[str, Any]] = []
+    for index, modifier in enumerate(modifiers):
+        location = f"{source_name}.modifiers[{index}]"
+        _require_mapping(modifier, location)
+        _require_exact_fields(modifier, MODIFIER_FIELDS, location)
+        for field in ("modifier_id", "trigger", "action", "protocol_reference"):
+            _require_non_empty_string(modifier[field], f"{location}.{field}")
+
+        modifier_id = modifier["modifier_id"]
+        if modifier_id in modifier_ids:
+            raise ValidationError(
+                f"{location}.modifier_id: duplicate modifier ID "
+                f"{modifier_id!r}"
+            )
+        modifier_ids.add(modifier_id)
+
+        trigger = modifier["trigger"]
+        _require_snake_case(trigger, f"{location}.trigger")
+        if trigger not in symptom_keys:
+            raise ValidationError(
+                f"{location} ({modifier_id}).trigger: unknown trigger key "
+                f"{trigger!r}"
+            )
+
+        applies_when_fired = modifier["applies_when_fired"]
+        if (
+            not isinstance(applies_when_fired, list)
+            or not applies_when_fired
+            or not all(isinstance(category, str) for category in applies_when_fired)
+        ):
+            raise ValidationError(
+                f"{location} ({modifier_id}).applies_when_fired: expected a "
+                "non-empty list of category strings"
+            )
+        if any(category not in ALLOWED_CATEGORIES for category in applies_when_fired):
+            raise ValidationError(
+                f"{location} ({modifier_id}).applies_when_fired: contains an "
+                "invalid trauma category"
+            )
+        if len(set(applies_when_fired)) != len(applies_when_fired):
+            raise ValidationError(
+                f"{location} ({modifier_id}).applies_when_fired: duplicate "
+                "category"
+            )
+
+        priority_override = modifier["priority_override"]
+        if priority_override not in ALLOWED_PRIORITIES | {NO_PRIORITY_OVERRIDE}:
+            raise ValidationError(
+                f"{location} ({modifier_id}).priority_override: invalid "
+                f"priority override {priority_override!r}"
+            )
+        _require_traceable_protocol_reference(
+            modifier["protocol_reference"],
+            f"{location} ({modifier_id}).protocol_reference",
+        )
+        validated_modifiers.append(modifier)
+
+    return validated_modifiers
+
+
+def validate_modifier_files(
+    symptoms_path: str | Path,
+    modifier_paths: list[str | Path] | tuple[str | Path, ...],
+) -> list[dict[str, Any]]:
+    """Load and validate all configured special-condition datasets."""
+
+    symptom_data = load_json_file(symptoms_path)
+    symptom_keys = validate_symptoms(symptom_data, symptoms_path)
+    modifiers: list[dict[str, Any]] = []
+    modifier_ids: set[str] = set()
+    for modifier_path in modifier_paths:
+        dataset = validate_modifiers(
+            load_json_file(modifier_path),
+            symptom_keys,
+            modifier_path,
+        )
+        for modifier in dataset:
+            if modifier["modifier_id"] in modifier_ids:
+                raise ValidationError(
+                    f"{modifier_path}: duplicate modifier ID across datasets "
+                    f"{modifier['modifier_id']!r}"
+                )
+            modifier_ids.add(modifier["modifier_id"])
+            modifiers.append(modifier)
+    return modifiers
+
+
 def validate_dataset_files(
     symptoms_path: str | Path,
     departments_path: str | Path,
@@ -320,8 +439,14 @@ def _require_traceable_protocol_reference(
     value: str,
     location: str,
 ) -> None:
-    if not any(url in value for url in PROTOCOL_URLS) or (
-        "recommendation " not in value.lower()
+    reference_markers = (
+        "recommendation ",
+        "section ",
+        "committee opinion ",
+        "imaging statement",
+    )
+    if not any(url in value for url in PROTOCOL_URLS) or not any(
+        marker in value.lower() for marker in reference_markers
     ):
         raise ValidationError(
             f"{location}: must include a source locator and recommendation "

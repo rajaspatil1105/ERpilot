@@ -7,6 +7,7 @@
     const metadata = document.getElementById("assessment-metadata");
     const matchedRules = document.getElementById("matched-rules");
     const unmatchedRules = document.getElementById("unmatched-rules");
+    const modifierRules = document.getElementById("modifier-rules");
     const noMatchMessage = document.getElementById("no-match-message");
     const symptomData = document.getElementById("symptom-data");
 
@@ -17,6 +18,7 @@
         || !metadata
         || !matchedRules
         || !unmatchedRules
+        || !modifierRules
         || !noMatchMessage
         || !symptomData
     ) {
@@ -126,6 +128,38 @@
         content.classList.add("d-none");
     }
 
+    function modifierCard(evaluation, labels) {
+        const column = document.createElement("div");
+        column.className = "col-lg-6";
+        const card = document.createElement("article");
+        card.className = "card rule-card";
+        const header = document.createElement("div");
+        header.className = "card-header d-flex justify-content-between gap-2";
+        addText(header, "h3", evaluation.modifier_id, "h5 mb-0");
+        addText(header, "span", evaluation.match_status, "badge text-bg-secondary");
+        card.appendChild(header);
+
+        const body = document.createElement("div");
+        body.className = "card-body";
+        addText(body, "p", `Trigger: ${conditionLabel(evaluation.trigger, labels)}`);
+        addText(body, "p", `Action: ${evaluation.action}`);
+        addText(
+            body,
+            "p",
+            `Priority override: ${evaluation.priority_override} (NONE preserves the core software priority).`,
+        );
+        addConditionList(body, "Matched conditions", evaluation.matched_conditions, labels);
+        addConditionList(body, "Unknown or missing conditions", evaluation.unknown_conditions, labels);
+        addConditionList(body, "Explicitly absent conditions", evaluation.absent_conditions, labels);
+        if (evaluation.explanation) {
+            addText(body, "p", evaluation.explanation, "small text-muted mt-3");
+        }
+        addProtocol(body, evaluation.protocol_reference);
+        card.appendChild(body);
+        column.appendChild(card);
+        return column;
+    }
+
     let result;
     let symptoms;
     try {
@@ -206,6 +240,21 @@
     for (const evaluation of unmatched) {
         unmatchedRules.appendChild(
             ruleCard(evaluation, explanations[evaluation.rule_id], labels),
+        );
+    }
+
+    const modifiers = result.modifier_result
+        || inference.modifiers
+        || { evaluations: [] };
+    for (const evaluation of modifiers.evaluations || []) {
+        modifierRules.appendChild(modifierCard(evaluation, labels));
+    }
+    if (!modifierRules.children.length) {
+        addText(
+            modifierRules,
+            "p",
+            "No applicable special-condition modifiers were evaluated.",
+            "text-muted",
         );
     }
 

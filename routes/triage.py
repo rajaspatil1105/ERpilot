@@ -11,6 +11,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from inference_engine.explainer import explain_match
 from inference_engine.forward_chaining import run_forward_chaining
+from inference_engine.modifier_matcher import run_modifier_evaluation
 from inference_engine.rule_matcher import (
     EVIDENCE_STATES,
     FULL_MATCH,
@@ -24,7 +25,9 @@ from inference_engine.rule_validator import (
     load_json_file,
     validate_core_rules,
     validate_departments,
+    validate_modifier_files,
     validate_symptoms,
+    SPECIAL_CONDITION_CATEGORY,
 )
 from models.assessment import Assessment
 from models.db import db
@@ -42,6 +45,24 @@ RULES_PATHS = {
     "abdominal_trauma": PROJECT_ROOT / "rule_base" / "core" / "abdominal_trauma_rules.json",
     "orthopedic_trauma": PROJECT_ROOT / "rule_base" / "core" / "orthopedic_trauma_rules.json",
 }
+MODIFIER_PATHS = (
+    PROJECT_ROOT
+    / "rule_base"
+    / "special_conditions"
+    / "pregnancy_modifiers.json",
+    PROJECT_ROOT
+    / "rule_base"
+    / "special_conditions"
+    / "anticoagulant_modifiers.json",
+    PROJECT_ROOT
+    / "rule_base"
+    / "special_conditions"
+    / "opioid_intoxication_modifiers.json",
+    PROJECT_ROOT
+    / "rule_base"
+    / "special_conditions"
+    / "allergy_modifiers.json",
+)
 SUPPORTED_RULE_CATEGORIES = set(RULES_PATHS)
 
 
@@ -151,11 +172,29 @@ def create_triage_assessment():
         )
 
     try:
-        symptom_keys = _load_symptom_keys()
-        evidence = _validate_evidence(payload["evidence"], symptom_keys)
+        symptom_categories = _load_symptom_categories()
+        evidence = _validate_evidence(
+            payload["evidence"],
+            symptom_categories,
+            ALLOWED_CATEGORIES,
+            "evidence",
+        )
+        modifier_evidence = _validate_evidence(
+            payload.get("modifier_evidence", {}),
+            symptom_categories,
+            {SPECIAL_CONDITION_CATEGORY},
+            "modifier_evidence",
+        )
         vitals = _validate_vitals(payload.get("vitals", {}))
         rules = _load_rules(category)
+        modifiers = _load_modifiers()
         inference_result = _evaluate_rules(rules, evidence)
+        modifier_result = _evaluate_modifiers(
+            modifiers,
+            category,
+            modifier_evidence,
+        )
+        inference_result["modifiers"] = modifier_result
     except RequestValidationError as error:
         return _error(error.message, 400, error.field)
     except (ValidationError, InferenceValidationError, RuleDataError) as error:
@@ -191,8 +230,10 @@ def create_triage_assessment():
             patient_id=assessment.patient_id,
             category=assessment.category,
             evidence=evidence,
+            modifier_evidence=modifier_evidence,
             vitals=vitals,
             inference_result=inference_result,
+            modifier_result=modifier_result,
             outcome=inference_result["outcome"],
             disclaimer=_disclaimer(),
         ),
@@ -224,9 +265,13 @@ def _request_object() -> dict[str, Any]:
     return payload
 
 
-def _load_symptom_keys() -> set[str]:
+def _load_symptom_categories() -> dict[str, str]:
     data = load_json_file(SYMPTOMS_PATH)
-    return validate_symptoms(data, SYMPTOMS_PATH)
+    validate_symptoms(data, SYMPTOMS_PATH)
+    return {
+        symptom["key"]: symptom["category"]
+        for symptom in data["symptoms"]
+    }
 
 
 def _load_rules(category: str = "brain_trauma") -> list[dict[str, Any]]:
@@ -253,25 +298,37 @@ def _load_rules(category: str = "brain_trauma") -> list[dict[str, Any]]:
         raise RuleDataError(str(error)) from error
 
 
+def _load_modifiers() -> list[dict[str, Any]]:
+    try:
+        return validate_modifier_files(SYMPTOMS_PATH, MODIFIER_PATHS)
+    except ValidationError as error:
+        raise RuleDataError(str(error)) from error
+
+
 def _validate_evidence(
     value: Any,
-    symptom_keys: set[str],
+    symptom_categories: dict[str, str],
+    allowed_categories: set[str],
+    field_name: str,
 ) -> dict[str, str]:
     if not isinstance(value, dict):
         raise RequestValidationError(
-            "evidence must be a JSON object.",
-            "evidence",
+            f"{field_name} must be a JSON object.",
+            field_name,
         )
     for key, state in value.items():
-        if key not in symptom_keys:
+        if (
+            key not in symptom_categories
+            or symptom_categories[key] not in allowed_categories
+        ):
             raise RequestValidationError(
-                f"Unknown symptom key: {key}.",
-                "evidence",
+                f"Unknown {field_name.replace('_', ' ')} key: {key}.",
+                field_name,
             )
         if not isinstance(state, str) or state not in EVIDENCE_STATES:
             raise RequestValidationError(
                 f"Invalid evidence state for {key}: {state!r}.",
-                "evidence",
+                field_name,
             )
     return dict(value)
 
@@ -340,6 +397,14 @@ def _evaluate_rules(
         "outcome": outcome,
         "explanations": explanations,
     }
+
+
+def _evaluate_modifiers(
+    modifiers: list[dict[str, Any]],
+    category: str,
+    evidence: dict[str, str],
+) -> dict[str, Any]:
+    return run_modifier_evaluation(modifiers, category, evidence)
 
 
 def _error(message: str, status: int, field: str | None = None):
