@@ -1,131 +1,158 @@
-# Rule Schema — ERPilot AI
+# ERPilot AI Rule Schema
 
-This file is the single source of truth for field names, value formats, and
-naming conventions across `rule_base/`. Every rule file must match this
-exactly. If a rule or modifier needs a field not listed here, update this
-file first, then update the rules — never add a field silently in a JSON
-file without reflecting it here.
+This document defines the authoritative structure for core rules and
+special-condition modifiers. The schemas are data contracts for later JSON
+datasets. They are not clinical guidance, and the illustrative values below
+are not approved clinical rules.
 
----
+## 1. Core rule schema
 
-## 1. Symptom / condition naming convention
-
-- All symptom and condition keys are `snake_case`.
-- Every key used anywhere in `rule_base/` **must** already exist in
-  `knowledge_base/symptoms.json`. Do not invent a new key inside a rule file.
-- No abbreviations unless the abbreviation itself is the canonical form
-  defined in `symptoms.json` (e.g. use `loss_of_consciousness`, not `loc`,
-  unless `loc` is explicitly defined as the canonical key).
-- Spelling must match exactly, including underscores — `loss_of_consciousness`
-  and `lossofconsciousness` are different keys as far as the matcher is
-  concerned, and a mismatch means a rule silently never fires.
-
----
-
-## 2. Core rule object (`rule_base/core/*.json`)
-
-Every rule in a core rule file is an object with exactly these fields, in
-this order:
-
-| Field                 | Type            | Notes |
-|-----------------------|-----------------|-------|
-| `rule_id`              | string          | Unique across the entire project, not just the file. Format: `"<DEPT-CODE>-<NN>"`, e.g. `"NS-04"`. |
-| `category`             | string          | One of: `brain_trauma`, `chest_trauma`, `abdominal_trauma`, `orthopedic_trauma`. |
-| `conditions`           | array of string | Symptom keys required for this rule to fire. Must all exist in `symptoms.json`. |
-| `conclusion`           | string          | Short snake_case label for the suspected injury, e.g. `possible_traumatic_brain_injury`. |
-| `priority_flag`        | string          | Exactly one of: `RED`, `ORANGE`, `YELLOW`, `GREEN`. Uppercase, no other casing accepted. |
-| `suggested_department` | string          | Human-readable department name, e.g. `"Neurosurgery"`. Must exist in `departments.json`. |
-| `checklist_action`     | string          | Phrased as a prompt, not an instruction. E.g. `"Consider immediate CT head, consider neuro consult"` — never `"Order CT head now"`. |
-| `protocol_reference`   | string          | Cites the real source this rule is derived from. No rule ships without this. |
-
-### Example
+Every core rule must contain exactly these fields:
 
 ```json
 {
   "rule_id": "NS-04",
   "category": "brain_trauma",
-  "conditions": ["head_injury", "vomiting", "loss_of_consciousness"],
+  "conditions": [
+    "head_injury",
+    "vomiting",
+    "loss_of_consciousness"
+  ],
   "conclusion": "possible_traumatic_brain_injury",
   "priority_flag": "RED",
   "suggested_department": "Neurosurgery",
-  "checklist_action": "Consider immediate CT head, consider neuro consult",
-  "protocol_reference": "ATLS Primary Survey - Disability (GCS assessment)"
+  "checklist_action": "Consider appropriate clinical assessment",
+  "protocol_reference": "Source title and exact recommendation reference"
 }
 ```
 
----
+The values in this example are schema examples only. They are not approved
+clinical rules and must not be copied into an actual rule dataset without
+independent source verification and qualified clinical review.
 
-## 3. Special-condition modifier object (`rule_base/special_conditions/*.json`)
+### 1.1 Field definitions
 
-Modifiers do **not** classify trauma on their own — they adjust the output
-of core rules that already fired. Every modifier has exactly these fields:
+| Field | Required type and meaning |
+| --- | --- |
+| `rule_id` | String. A unique, stable identifier for the rule. |
+| `category` | String. One of the four allowed core trauma categories. |
+| `conditions` | Array of canonical condition-key strings. These are the required conditions for the rule. |
+| `conclusion` | String. A software conclusion label; it must not be presented as a diagnosis. |
+| `priority_flag` | String. One of the exact allowed uppercase priority values. |
+| `suggested_department` | String. A source-supported department suggestion; it must not be invented or treated as an autonomous referral. |
+| `checklist_action` | String. A source-supported educational checklist action. It must not be an autonomous treatment instruction. |
+| `protocol_reference` | String. A source title plus an exact recommendation, section, or page reference where possible. |
 
-| Field                | Type            | Notes |
-|-----------------------|-----------------|-------|
-| `modifier_id`          | string          | Unique across the project. Format: `"<TAG-NN>"`, e.g. `"PREG-01"`. |
-| `trigger`              | string          | The patient flag that activates this modifier. Must exist in the patient flag list (Section 4). |
-| `applies_when_fired`   | array of string | List of `category` values this modifier applies to, or `["*"]` if it applies regardless of category. |
-| `action`               | string          | Phrased as a prompt, same rule as `checklist_action` above. |
-| `priority_override`    | string or null  | One of `RED`, `ORANGE`, `YELLOW`, `GREEN`, or `null` if this modifier doesn't change priority. |
-| `protocol_reference`   | string          | Cites the real source. No modifier ships without this. |
+### 1.2 Allowed category values
 
-### Example
+The `category` field must use exactly one of:
+
+- `brain_trauma`
+- `chest_trauma`
+- `abdominal_trauma`
+- `orthopedic_trauma`
+
+### 1.3 Allowed priority values
+
+The `priority_flag` field must use exactly one of these uppercase values:
+
+- `RED`
+- `ORANGE`
+- `YELLOW`
+- `GREEN`
+
+Priority values must be independently justified by the applicable source and
+clinical review. They must not be inferred from the illustrative example.
+
+## 2. Special-condition modifier schema
+
+Every modifier must contain exactly these fields:
 
 ```json
 {
   "modifier_id": "PREG-01",
   "trigger": "pregnant",
-  "applies_when_fired": ["abdominal_trauma", "chest_trauma"],
-  "action": "Avoid standard CT protocol - page OB immediately, assess fetal distress",
+  "applies_when_fired": [
+    "abdominal_trauma",
+    "chest_trauma"
+  ],
+  "action": "Flag pregnancy for clinician review of applicable imaging considerations",
   "priority_override": "RED",
-  "protocol_reference": "ATLS Special Populations - Pregnant Trauma Patient"
+  "protocol_reference": "Source title and exact recommendation reference"
 }
 ```
 
----
+This is a structural example only. The example action and priority override
+are not approved clinical instructions and must not be copied into the actual
+modifier dataset without independent research and qualified clinical review.
 
-## 4. Patient flag vocabulary (used by `trigger`)
+### 2.1 Modifier field definitions
 
-These are the only valid values for a modifier's `trigger` field. Do not
-introduce a new trigger value without adding it here first.
+| Field | Required type and meaning |
+| --- | --- |
+| `modifier_id` | String. A unique, stable identifier for the modifier. |
+| `trigger` | String. A canonical special-condition key that activates the modifier. |
+| `applies_when_fired` | Array of the exact core category strings to which the modifier may apply. |
+| `action` | String. A source-supported educational action or review flag. |
+| `priority_override` | String. When an override is used, it must use an allowed uppercase priority value and be source-supported. |
+| `protocol_reference` | String. A source title plus an exact recommendation, section, or page reference where possible. |
 
-| Trigger                  | Meaning |
-|---------------------------|---------|
-| `pregnant`                 | Patient is pregnant. |
-| `on_anticoagulants`        | Patient takes blood-thinning medication (home medication, not administered in ER). |
-| `narcotic_intoxication`    | Patient is currently under the influence of narcotics/opioids. |
-| `allergy_anesthesia`       | Documented anesthesia allergy on file. |
+The modifier schema does not create a new trauma category. A modifier adjusts
+the output of applicable core rules and must be researched independently.
 
----
+## 3. Naming conventions
 
-## 5. Priority flag values
+- All symptom and condition keys use `snake_case`.
+- Each canonical key must be defined once in
+  `knowledge_base/symptoms.json` in a later stage.
+- The identical spelling must be used in symptom definitions, rules,
+  modifiers, and inference-engine evidence.
+- Rule IDs must be unique and stable.
+- Modifier IDs must be unique and stable.
+- Core rule categories must use exactly the four allowed category values.
+- Priority values must use exactly the allowed uppercase values.
+- Every core rule and modifier requires a protocol reference.
+- Values must be JSON-compatible.
+- Individual rule and modifier objects must not contain arbitrary fields.
 
-Exactly four values, uppercase, no variants:
+## 4. Evidence and matching requirements
 
-- `RED` — immediate treatment
-- `ORANGE` — very urgent
-- `YELLOW` — delayed
-- `GREEN` — minor injury
+- A required condition is satisfied only when its evidence state is `present`.
+- Missing or unknown observations must not be treated as confirmed absence.
+- An explicit `absent` observation is distinct from an unanswered `unknown`
+  observation.
+- A core rule can fire only when all of its required conditions are present.
+- A partial match may be used to identify genuinely missing follow-up
+  information, but it is not a fired rule.
+- A no-match outcome must remain explicit when no required condition is
+  present.
 
----
+## 5. Validation requirements
 
-## 6. Language rules (applies to `checklist_action` and `action`)
+Future loaders and tests must validate at least the following:
 
-- Always phrased as a prompt or suggestion for staff to consider, never as
-  a command or a verdict.
-- Correct: `"Consider immediate CT head, consider neuro consult"`
-- Incorrect: `"Order CT head now"` / `"Patient has brain trauma"`
-- This is not a style preference — it's the difference between a checklist
-  tool and a tool that quietly makes clinical decisions. See
-  `docs/requirement_analysis.md`.
+1. Every object has exactly the fields specified for its structure.
+2. Every required field is present with the expected JSON-compatible type.
+3. Rule IDs and modifier IDs are unique within their respective datasets.
+4. Core categories and priorities use only the allowed values.
+5. Condition and trigger keys follow the canonical vocabulary and
+   `snake_case` convention.
+6. `applies_when_fired` contains only allowed core categories.
+7. Every `protocol_reference` is non-empty and traceable to a source and
+   specific recommendation, section, or page where possible.
+8. No unresolved or unknown observation is silently converted to absence.
+9. Priority overrides and actions are supported by the modifier's independent
+   source research.
 
----
+## 6. Protocol-reference requirements
 
-## 7. Checklist before adding any new rule or modifier
+A protocol reference must identify:
 
-- [ ] Every condition/trigger key already exists in `knowledge_base/symptoms.json` or Section 4 above.
-- [ ] `rule_id` / `modifier_id` is unique across the whole project, not just this file.
-- [ ] `priority_flag` / `priority_override` uses one of the four exact values, uppercase.
-- [ ] `checklist_action` / `action` is phrased as a prompt, not a command.
-- [ ] `protocol_reference` cites a real, checkable source.
-- [ ] No extra fields added beyond what's defined in Section 2 or 3.
+- The source organization and complete title.
+- The guideline identifier when available.
+- An exact recommendation number, section, or page where possible.
+- Enough information for a reviewer to verify the source.
+
+The existence of a protocol reference does not by itself make a rule
+clinically valid. Future rule datasets require source verification and
+qualified clinical review.
