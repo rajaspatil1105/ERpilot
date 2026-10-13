@@ -1,4 +1,4 @@
-"""Minimal Flask configuration for local educational development."""
+"""Flask configuration for local educational development."""
 
 import os
 
@@ -13,3 +13,8 @@ class DevelopmentConfig:
     )
     SQLALCHEMY_DATABASE_URI = "sqlite:///erpilot.db"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    EDUCATIONAL_DISCLAIMER = (
+        "ERPilot AI is an educational prototype, not clinically validated, "
+        "not intended for use on real patients, and not a substitute for "
+        "qualified clinical judgment."
+    )
