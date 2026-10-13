@@ -178,7 +178,6 @@ The following are intentionally deferred until later stages:
 - Creating JSON rule and modifier datasets.
 - Implementing the Flask application, inference engine, database models,
   templates, frontend components, and tests.
-- Adding report generation.
 - Adding an optional read-only rule viewer.
 
 Clinical rules must not be derived from the illustrative schema examples in

@@ -106,6 +106,10 @@ body {
     border-left-color: #6c757d;
 }
 
+.priority-alert {
+    border-left: 0.45rem solid #842029;
+}
+
 .rule-card {
     height: 100%;
     border: 1px solid #dbe5ee;

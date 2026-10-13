@@ -18,6 +18,12 @@
 
 <section id="results-content" class="d-none" aria-live="polite">
     <div id="outcome-summary" class="outcome-panel mb-4"></div>
+    <div
+        id="priority-alert"
+        class="alert alert-danger d-none priority-alert mb-4"
+        role="alert"
+        aria-live="polite"
+    ></div>
 
     <div class="card form-card mb-4">
         <div class="card-body p-4">
@@ -51,6 +57,15 @@
             rewrite the core trauma outcome.
         </p>
         <div id="modifier-rules" class="row g-3"></div>
+    </section>
+
+    <section class="mb-4">
+        <h2 class="h3">Download report</h2>
+        <p class="text-muted">
+            Reports preserve the recorded evidence and software evaluation for
+            review. They do not establish a diagnosis or treatment plan.
+        </p>
+        <div id="report-downloads" class="d-flex flex-wrap gap-2"></div>
     </section>
 
     <div class="d-flex flex-wrap gap-2">

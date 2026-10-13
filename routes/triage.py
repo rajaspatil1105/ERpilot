@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import math
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_file
 
 from inference_engine.explainer import explain_match
 from inference_engine.forward_chaining import run_forward_chaining
@@ -32,6 +33,12 @@ from inference_engine.rule_validator import (
 from models.assessment import Assessment
 from models.db import db
 from models.patient import Patient
+from reporting import (
+    ReportDataError,
+    build_report_data,
+    generate_docx_report,
+    generate_pdf_report,
+)
 
 
 triage_bp = Blueprint("triage", __name__, url_prefix="/api")
@@ -64,6 +71,18 @@ MODIFIER_PATHS = (
     / "allergy_modifiers.json",
 )
 SUPPORTED_RULE_CATEGORIES = set(RULES_PATHS)
+REPORT_FORMATS = {
+    "pdf": (
+        "application/pdf",
+        "pdf",
+        generate_pdf_report,
+    ),
+    "docx": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "docx",
+        generate_docx_report,
+    ),
+}
 
 
 @triage_bp.post("/patients")
@@ -238,6 +257,51 @@ def create_triage_assessment():
             disclaimer=_disclaimer(),
         ),
         201,
+    )
+
+
+@triage_bp.get(
+    "/patients/<int:patient_id>/assessments/<int:assessment_id>/report/<report_format>"
+)
+def download_assessment_report(patient_id: int, assessment_id: int, report_format: str):
+    """Download a report only when the assessment belongs to the path patient."""
+
+    format_details = REPORT_FORMATS.get(report_format.lower())
+    if format_details is None:
+        return _error(
+            "report format must be either pdf or docx.",
+            400,
+            "report_format",
+        )
+
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or assessment.patient_id != patient_id:
+        return _error("Assessment was not found.", 404, "assessment_id")
+
+    try:
+        report_data = build_report_data(assessment)
+        content_type, extension, generator = format_details
+        report_content = generator(report_data)
+    except ReportDataError as error:
+        current_app.logger.error(
+            "Assessment report data is invalid for %s: %s",
+            assessment_id,
+            error,
+        )
+        return _error("Assessment report could not be generated.", 500)
+    except (OSError, TypeError, ValueError) as error:
+        current_app.logger.exception(
+            "Assessment report generation failed for %s: %s",
+            assessment_id,
+            error,
+        )
+        return _error("Assessment report could not be generated.", 500)
+
+    return send_file(
+        BytesIO(report_content),
+        mimetype=content_type,
+        as_attachment=True,
+        download_name=f"erpilot-assessment-{assessment_id}.{extension}",
     )
 
 

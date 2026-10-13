@@ -3,3 +3,4 @@ SQLAlchemy
 Flask-SQLAlchemy
 pytest
 reportlab
+python-docx

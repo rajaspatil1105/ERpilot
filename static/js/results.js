@@ -4,10 +4,12 @@
     const errorBox = document.getElementById("results-error");
     const content = document.getElementById("results-content");
     const outcomeSummary = document.getElementById("outcome-summary");
+    const priorityAlert = document.getElementById("priority-alert");
     const metadata = document.getElementById("assessment-metadata");
     const matchedRules = document.getElementById("matched-rules");
     const unmatchedRules = document.getElementById("unmatched-rules");
     const modifierRules = document.getElementById("modifier-rules");
+    const reportDownloads = document.getElementById("report-downloads");
     const noMatchMessage = document.getElementById("no-match-message");
     const symptomData = document.getElementById("symptom-data");
 
@@ -15,10 +17,12 @@
         !errorBox
         || !content
         || !outcomeSummary
+        || !priorityAlert
         || !metadata
         || !matchedRules
         || !unmatchedRules
         || !modifierRules
+        || !reportDownloads
         || !noMatchMessage
         || !symptomData
     ) {
@@ -224,6 +228,32 @@
         ...(inference.full_matches || []),
         ...(inference.partial_matches || []),
     ];
+    const redEvaluations = matched.filter(
+        (evaluation) => evaluation.priority_flag === "RED",
+    );
+    if (redEvaluations.length) {
+        addText(
+            priorityAlert,
+            "strong",
+            "Provisional RED software-display priority",
+        );
+        addText(
+            priorityAlert,
+            "p",
+            "One or more applicable rule evaluations use RED. This is not "
+                + "a clinically validated triage category; review the "
+                + "recorded evidence and qualified clinical judgment.",
+        );
+        addText(
+            priorityAlert,
+            "p",
+            `Applicable RED rule IDs: ${
+                redEvaluations.map((evaluation) => evaluation.rule_id).join(", ")
+            }`,
+            "mb-0",
+        );
+        priorityAlert.classList.remove("d-none");
+    }
     for (const evaluation of matched) {
         matchedRules.appendChild(
             ruleCard(evaluation, explanations[evaluation.rule_id], labels),
@@ -256,6 +286,18 @@
             "No applicable special-condition modifiers were evaluated.",
             "text-muted",
         );
+    }
+
+    for (const [format, label] of [["pdf", "Download PDF"], ["docx", "Download DOCX"]]) {
+        const link = document.createElement("a");
+        link.className = "btn btn-outline-primary";
+        link.href = (
+            `/api/patients/${encodeURIComponent(result.patient_id)}`
+            + `/assessments/${encodeURIComponent(result.assessment_id)}`
+            + `/report/${format}`
+        );
+        link.textContent = label;
+        reportDownloads.appendChild(link);
     }
 
     errorBox.classList.add("d-none");

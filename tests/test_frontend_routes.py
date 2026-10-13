@@ -130,6 +130,10 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     assert "No rule matched the recorded evidence" in script
     assert "modifier_result" in script
     assert 'id="modifier-rules"' in page
+    assert 'id="priority-alert"' in page
+    assert 'id="report-downloads"' in page
+    assert "Provisional RED software-display priority" in script
+    assert "/report/${format}" in script
 
 
 def test_existing_patient_and_triage_api_endpoints_remain_available(client):
