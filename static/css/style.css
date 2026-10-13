@@ -1,0 +1,139 @@
+:root {
+    --erpilot-ink: #17324d;
+    --erpilot-blue: #1d5f91;
+    --erpilot-surface: #f5f8fb;
+}
+
+body {
+    background: var(--erpilot-surface);
+    color: #1f2933;
+}
+
+.site-header {
+    background: var(--erpilot-ink);
+}
+
+.site-header .navbar-brand,
+.site-header .nav-link {
+    color: #ffffff;
+}
+
+.site-header .nav-link:hover,
+.site-header .nav-link:focus {
+    color: #cfe8ff;
+}
+
+.skip-link {
+    position: fixed;
+    z-index: 1050;
+    padding: 0.5rem 1rem;
+    background: #ffffff;
+}
+
+.disclaimer {
+    border-left: 0.35rem solid #b26a00;
+}
+
+.page-heading h1 {
+    color: var(--erpilot-ink);
+}
+
+.eyebrow {
+    margin-bottom: 0.35rem;
+    color: var(--erpilot-blue);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.form-card,
+.symptom-card,
+.context-card {
+    border: 1px solid #dbe5ee;
+    box-shadow: 0 0.2rem 0.8rem rgb(23 50 77 / 7%);
+}
+
+.symptom-card h3 {
+    color: var(--erpilot-ink);
+}
+
+.state-button {
+    min-width: 5.5rem;
+}
+
+.state-button.state-selected {
+    color: #ffffff;
+}
+
+.state-button[data-state="PRESENT"].state-selected {
+    background: #198754;
+}
+
+.state-button[data-state="ABSENT"].state-selected {
+    background: #dc3545;
+}
+
+.state-button[data-state="UNKNOWN"].state-selected {
+    background: #6c757d;
+}
+
+.evidence-status {
+    color: #52606d;
+}
+
+.context-card {
+    padding: 0.85rem 1rem;
+    background: #ffffff;
+}
+
+.outcome-panel {
+    padding: 1.25rem;
+    border: 1px solid #dbe5ee;
+    border-left: 0.45rem solid var(--erpilot-blue);
+    background: #ffffff;
+}
+
+.outcome-panel.outcome-full {
+    border-left-color: #198754;
+}
+
+.outcome-panel.outcome-partial {
+    border-left-color: #b26a00;
+}
+
+.outcome-panel.outcome-none {
+    border-left-color: #6c757d;
+}
+
+.rule-card {
+    height: 100%;
+    border: 1px solid #dbe5ee;
+    background: #ffffff;
+}
+
+.rule-card .card-header {
+    background: #eef4f9;
+}
+
+.rule-card ul {
+    padding-left: 1.25rem;
+}
+
+.vital-row {
+    padding: 0.75rem;
+    border: 1px solid #dbe5ee;
+    border-radius: 0.35rem;
+    background: #f8fafc;
+}
+
+@media (max-width: 575.98px) {
+    .evidence-buttons {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .state-button {
+        flex: 1 1 30%;
+    }
+}

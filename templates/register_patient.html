@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Register patient | ERPilot AI{% endblock %}
+
+{% block content %}
+<section class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="page-heading mb-4">
+            <p class="eyebrow">Step 1</p>
+            <h1>Register a patient</h1>
+            <p class="lead">
+                Enter only the details needed to start an educational checklist
+                assessment.
+            </p>
+        </div>
+
+        <div id="registration-status" class="alert d-none" role="status"></div>
+
+        <form id="registration-form" class="card form-card" novalidate>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label" for="patient-name">Name</label>
+                        <input
+                            class="form-control"
+                            id="patient-name"
+                            name="name"
+                            type="text"
+                            autocomplete="name"
+                            required
+                        >
+                        <div class="invalid-feedback">
+                            Enter a patient name.
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="patient-age">Age</label>
+                        <input
+                            class="form-control"
+                            id="patient-age"
+                            name="age"
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputmode="numeric"
+                            required
+                        >
+                        <div class="invalid-feedback">
+                            Enter a non-negative whole number.
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="patient-gender">Gender</label>
+                        <input
+                            class="form-control"
+                            id="patient-gender"
+                            name="gender"
+                            type="text"
+                            required
+                        >
+                        <div class="invalid-feedback">
+                            Enter a gender value.
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="incident-type">
+                            Incident type
+                        </label>
+                        <input
+                            class="form-control"
+                            id="incident-type"
+                            name="incident_type"
+                            type="text"
+                            required
+                        >
+                        <div class="invalid-feedback">
+                            Enter an incident type.
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-center mt-4">
+                    <button class="btn btn-primary" type="submit">
+                        Save and continue
+                    </button>
+                    <a
+                        id="continue-assessment"
+                        class="btn btn-outline-secondary d-none"
+                        href="{{ url_for('assessment_page') }}"
+                    >
+                        Continue to assessment
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/registration.js') }}" defer></script>
+{% endblock %}

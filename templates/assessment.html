@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment | ERPilot AI{% endblock %}
+
+{% block content %}
+<section class="page-heading mb-4">
+    <p class="eyebrow">Step 2</p>
+    <h1>Record assessment evidence</h1>
+    <p class="lead">
+        Select an evidence state for each canonical criterion. Unanswered
+        criteria remain <strong>UNKNOWN</strong>; they are not treated as absent.
+    </p>
+</section>
+
+<div id="assessment-status" class="alert d-none" role="status"></div>
+<div id="patient-context" class="context-card mb-4" role="status"></div>
+
+<form id="assessment-form" novalidate>
+    <div class="card form-card mb-4">
+        <div class="card-body p-4">
+            <div class="row align-items-end g-3">
+                <div class="col-md-7">
+                    <label class="form-label" for="category">Category</label>
+                    <select class="form-select" id="category" name="category">
+                        {% for category in categories %}
+                        <option
+                            value="{{ category }}"
+                            {% if category not in supported_categories %}disabled{% endif %}
+                        >
+                            {{ category|replace('_', ' ')|title }}
+                            {% if category in supported_categories %}
+                            (supported)
+                            {% else %}
+                            (unavailable)
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Only brain trauma has an implemented rule set in this prototype.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <fieldset class="mb-4">
+        <legend class="h2">Brain-trauma evidence</legend>
+        <p class="text-muted">
+            Use the buttons to record what is known. The criteria and labels
+            below come from the canonical knowledge base.
+        </p>
+        <div id="symptom-list" class="row g-3">
+            {% for symptom in symptoms %}
+            <div class="col-md-6">
+                <article class="card symptom-card h-100">
+                    <div class="card-body">
+                        <h3 class="h5">{{ symptom.label }}</h3>
+                        <p class="small text-muted mb-3">
+                            {{ symptom.description }}
+                        </p>
+                        <div
+                            class="btn-group evidence-buttons"
+                            role="group"
+                            aria-label="Evidence state for {{ symptom.label }}"
+                        >
+                            <button
+                                class="btn btn-outline-success state-button"
+                                type="button"
+                                data-key="{{ symptom.key }}"
+                                data-state="PRESENT"
+                            >
+                                Present
+                            </button>
+                            <button
+                                class="btn btn-outline-danger state-button"
+                                type="button"
+                                data-key="{{ symptom.key }}"
+                                data-state="ABSENT"
+                            >
+                                Absent
+                            </button>
+                            <button
+                                class="btn btn-outline-secondary state-button state-selected"
+                                type="button"
+                                data-key="{{ symptom.key }}"
+                                data-state="UNKNOWN"
+                                aria-pressed="true"
+                            >
+                                Unknown
+                            </button>
+                        </div>
+                        <div
+                            class="small mt-2 evidence-status"
+                            data-status-for="{{ symptom.key }}"
+                        >
+                            Recorded state: UNKNOWN
+                        </div>
+                    </div>
+                </article>
+            </div>
+            {% endfor %}
+        </div>
+    </fieldset>
+
+    <fieldset class="card form-card mb-4">
+        <div class="card-body p-4">
+            <legend class="h2">Optional vital signs</legend>
+            <p class="text-muted">
+                Add only numeric readings that staff have available. No
+                thresholds are applied by this interface.
+            </p>
+            <div id="vitals-list"></div>
+            <button
+                id="add-vital"
+                class="btn btn-outline-secondary"
+                type="button"
+            >
+                Add a vital reading
+            </button>
+        </div>
+    </fieldset>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-primary" type="submit">
+            Submit assessment
+        </button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('register_page') }}">
+            Register another patient
+        </a>
+    </div>
+</form>
+
+<script id="symptom-data" type="application/json">{{ symptoms|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/assessment.js') }}" defer></script>
+{% endblock %}

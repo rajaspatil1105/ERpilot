@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Results | ERPilot AI{% endblock %}
+
+{% block content %}
+<section class="page-heading mb-4">
+    <p class="eyebrow">Step 3</p>
+    <h1>Assessment results</h1>
+    <p class="lead">
+        Review the recorded evidence and the deterministic rule evaluation.
+        These results are not a diagnosis or a definitive clinical triage decision.
+    </p>
+</section>
+
+<div id="results-error" class="alert alert-info" role="status">
+    Submit an assessment to view its results.
+</div>
+
+<section id="results-content" class="d-none" aria-live="polite">
+    <div id="outcome-summary" class="outcome-panel mb-4"></div>
+
+    <div class="card form-card mb-4">
+        <div class="card-body p-4">
+            <h2 class="h4">Recorded assessment</h2>
+            <dl id="assessment-metadata" class="row mb-0"></dl>
+        </div>
+    </div>
+
+    <div class="alert alert-secondary mb-4">
+        <strong>Backward-chaining limitation:</strong>
+        The current API exposes forward evaluation only. Unresolved supported
+        conditions are shown below as unknown information; this page does not
+        invent follow-up questions or run a second inference engine.
+    </div>
+
+    <section class="mb-4">
+        <h2 class="h3">Applicable rule evaluations</h2>
+        <div id="matched-rules" class="row g-3"></div>
+    </section>
+
+    <section class="mb-4">
+        <h2 class="h3">Rules without a match</h2>
+        <p id="no-match-message" class="text-muted"></p>
+        <div id="unmatched-rules" class="row g-3"></div>
+    </section>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ url_for('assessment_page') }}">
+            Start another assessment
+        </a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('register_page') }}">
+            Register another patient
+        </a>
+    </div>
+</section>
+
+<script id="symptom-data" type="application/json">{{ symptoms|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/results.js') }}" defer></script>
+{% endblock %}
