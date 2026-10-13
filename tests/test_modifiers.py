@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -6,7 +7,7 @@ import pytest
 from app import create_app
 from inference_engine.modifier_matcher import run_modifier_evaluation
 from inference_engine.rule_matcher import ABSENT, FULL_MATCH, NO_MATCH, UNKNOWN
-from inference_engine.rule_validator import validate_modifier_files
+from inference_engine.rule_validator import load_json_file, validate_modifier_files
 from models.assessment import Assessment
 from models.db import db
 from routes.triage import MODIFIER_PATHS, SYMPTOMS_PATH
@@ -72,6 +73,37 @@ def test_all_modifier_datasets_validate():
     assert "NICE NG232, recommendation 1.5.13:" in (
         anticoagulant["protocol_reference"]
     )
+
+
+def test_ac01_protocol_reference_is_consistent_across_sources():
+    symptom_data = load_json_file(SYMPTOMS_PATH)
+    symptom = next(
+        item
+        for item in symptom_data["symptoms"]
+        if item["key"] == "anticoagulant_treatment_documented"
+    )
+    modifiers = validate_modifier_files(SYMPTOMS_PATH, MODIFIER_PATHS)
+    anticoagulant = next(
+        modifier
+        for modifier in modifiers
+        if modifier["modifier_id"] == "AC-01"
+    )
+    protocol_text = (
+        ROOT / "knowledge_base" / "protocols.md"
+    ).read_text(encoding="utf-8")
+    anticoagulant_section = protocol_text.split(
+        "### Anticoagulant treatment",
+        1,
+    )[1].split("### Narcotic/opioid intoxication", 1)[0]
+
+    expected_reference = "NICE NG232, recommendation 1.5.13"
+    assert symptom["source_reference"] == expected_reference
+    assert anticoagulant["protocol_reference"].startswith(
+        f"{expected_reference}:"
+    )
+    normalized_section = re.sub(r"\s+", " ", anticoagulant_section)
+    assert "NG232" in normalized_section
+    assert "recommendation 1.5.13" in normalized_section
 
 
 @pytest.mark.parametrize(("trigger", "modifier_id"), MODIFIER_CASES)

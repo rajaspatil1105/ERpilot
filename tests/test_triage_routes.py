@@ -245,6 +245,11 @@ def test_invalid_categories_are_rejected_and_stage_6_categories_work(client):
             "orthopedic_trauma_suspected_knee_fracture_person_over_2",
             "NICE NG38",
         ),
+        (
+            "orthopedic_trauma",
+            "orthopedic_trauma_reduction_or_cast_splint_traction",
+            "NICE NG38",
+        ),
     ],
 )
 def test_stage_6_categories_load_their_own_rules(

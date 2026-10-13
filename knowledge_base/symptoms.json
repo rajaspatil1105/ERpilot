@@ -103,7 +103,7 @@
       "category": "special_condition",
       "evidence_type": "documented_medication_status",
       "description": "Anticoagulant treatment documented by the clinical team; medication status is not inferred from symptoms.",
-      "source_reference": "NICE NG232, recommendation 1.5.9"
+      "source_reference": "NICE NG232, recommendation 1.5.13"
     },
     {
       "key": "opioid_intoxication_documented_or_suspected",
