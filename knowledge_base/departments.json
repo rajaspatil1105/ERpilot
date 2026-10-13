@@ -1,0 +1,9 @@
+{
+  "departments": [
+    {
+      "department_id": "emergency_department",
+      "name": "Emergency Department",
+      "description": "Department context for the cited emergency-department head-injury recommendations."
+    }
+  ]
+}

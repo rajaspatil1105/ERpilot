@@ -1,0 +1,88 @@
+{
+  "rules": [
+    {
+      "rule_id": "BT-01",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_gcs_12_or_less_initial_ed"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-02",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_gcs_below_15_at_2_hours"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-03",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_suspected_open_or_depressed_skull_fracture"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-04",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_sign_of_basal_skull_fracture"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-05",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_post_traumatic_seizure"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-06",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_focal_neurological_deficit"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-07",
+      "category": "brain_trauma",
+      "conditions": [
+        "adult_head_injury_more_than_one_vomiting_episode"
+      ],
+      "conclusion": "adult_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    }
+  ]
+}

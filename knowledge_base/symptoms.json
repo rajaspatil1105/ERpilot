@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "symptoms": [
+    {
+      "key": "adult_head_injury_gcs_12_or_less_initial_ed",
+      "label": "Initial emergency-department GCS score of 12 or less",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    },
+    {
+      "key": "adult_head_injury_gcs_below_15_at_2_hours",
+      "label": "GCS score below 15 at two hours after the injury",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    },
+    {
+      "key": "adult_head_injury_suspected_open_or_depressed_skull_fracture",
+      "label": "Suspected open or depressed skull fracture",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    },
+    {
+      "key": "adult_head_injury_sign_of_basal_skull_fracture",
+      "label": "Sign of basal skull fracture",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    },
+    {
+      "key": "adult_head_injury_post_traumatic_seizure",
+      "label": "Post-traumatic seizure",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    },
+    {
+      "key": "adult_head_injury_focal_neurological_deficit",
+      "label": "Focal neurological deficit",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    },
+    {
+      "key": "adult_head_injury_more_than_one_vomiting_episode",
+      "label": "More than one episode of vomiting",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Adult head-injury criterion from NICE NG232 recommendation 1.5.8.",
+      "source_reference": "NICE NG232, recommendation 1.5.8"
+    }
+  ]
+}

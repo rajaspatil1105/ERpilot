@@ -20,12 +20,11 @@ reviewed by a qualified clinician.
 - **Title:** *Head injury: assessment and early management*
 - **Guideline identifier:** NG232
 - **Official URL:** <https://www.nice.org.uk/guidance/NG232/chapter/recommendations>
-- **Publication/update information:** Not recorded in the supplied Stage 0
-  brief; verify the current publication and update details before
-  implementation.
-- **Verification status:** Official source URL supplied. The exact current
-  recommendation text and numbers for each research area remain to be
-  verified before any rule is derived.
+- **Publication date:** 18 May 2023.
+- **Last-updated date listed by NICE:** 18 May 2023.
+- **Verification status:** The supplied adult criteria and recommendation
+  references are verified for this Stage 2 implementation. Verify the latest
+  applicable guidance before any real-world use.
 
 ### Relevant research areas
 
@@ -43,15 +42,37 @@ The supplied research brief identifies these areas for review:
 
 ### Supported research direction
 
-NG232 may inform future brain-trauma rules and separate anticoagulant or
-intoxication modifier research. Exact recommendation numbers must be recorded
-for every implemented finding. Adult and paediatric criteria must be kept
-distinct.
+Recommendation 1.5.8 states that for people aged 16 and over who have
+sustained a head injury, a CT head scan should be performed within one hour of
+identifying any of the following criteria:
+
+- GCS score of 12 or less on initial emergency-department assessment.
+- GCS score below 15 at two hours after the injury.
+- Suspected open or depressed skull fracture.
+- Any sign of basal skull fracture.
+- Post-traumatic seizure.
+- Focal neurological deficit.
+- More than one episode of vomiting.
+
+These seven adult criteria are represented by the educational rules BT-01
+through BT-07 in `rule_base/core/brain_trauma_rules.json`. They are software
+representations of the cited recommendation, not diagnoses or autonomous
+treatment instructions. They require review by a qualified clinician before
+any real-world use.
+
+Recommendation 1.4.2 states that a depressed conscious level should only be
+attributed to intoxication after an important traumatic brain injury has been
+excluded. This remains a future research item for a separate intoxication
+modifier; no intoxication modifier is created in Stage 2.
+
+NG232 may also inform future separate anticoagulant research. Adult and
+paediatric criteria must be kept distinct.
 
 ### Limitations and unresolved questions
 
-- No individual recommendation numbers or thresholds are asserted here
-  because they were not supplied in the Stage 0 brief.
+- The seven encoded criteria are adult recommendations for people aged 16 and
+  over; they must not be applied to paediatric patients without separate
+  source-supported criteria.
 - Adult and paediatric criteria must not be combined without explicit source
   support.
 - GCS, loss of consciousness, amnesia, vomiting, neurological deficits,
@@ -60,6 +81,15 @@ distinct.
   conditions.
 - A future implementation must not infer a diagnosis or treatment instruction
   from a general research area.
+
+### Stage 2 priority-display assumption
+
+NICE recommendation 1.5.8 specifies an urgent CT time criterion but does not
+define ERPilot's `RED`/`ORANGE`/`YELLOW`/`GREEN` software color system. For
+this educational demonstration only, BT-01 through BT-07 use `RED` as a
+provisional software-display mapping. This is not a NICE-defined priority
+classification, must not be presented as a validated clinical triage score,
+and requires qualified clinical review.
 
 ### Proposed ERPilot research area
 
