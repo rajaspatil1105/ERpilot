@@ -18,6 +18,11 @@ ROOT = Path(__file__).resolve().parents[1]
 SYMPTOMS_PATH = ROOT / "knowledge_base" / "symptoms.json"
 DEPARTMENTS_PATH = ROOT / "knowledge_base" / "departments.json"
 RULES_PATH = ROOT / "rule_base" / "core" / "brain_trauma_rules.json"
+STAGE_6_RULE_PATHS = (
+    ROOT / "rule_base" / "core" / "chest_trauma_rules.json",
+    ROOT / "rule_base" / "core" / "abdominal_trauma_rules.json",
+    ROOT / "rule_base" / "core" / "orthopedic_trauma_rules.json",
+)
 PROTOCOL_REFERENCE = (
     "NICE NG232, recommendation 1.5.8: "
     "https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
@@ -86,6 +91,42 @@ def test_valid_project_datasets_pass_validation():
     assert {rule["rule_id"] for rule in rules} == {
         f"BT-{number:02d}" for number in range(1, 8)
     }
+
+
+@pytest.mark.parametrize("rules_path", STAGE_6_RULE_PATHS)
+def test_stage_6_rule_files_pass_validation(rules_path):
+    category = rules_path.stem.removesuffix("_trauma_rules") + "_trauma"
+    rules = validate_dataset_files(
+        SYMPTOMS_PATH,
+        DEPARTMENTS_PATH,
+        rules_path,
+        expected_category=category,
+    )
+
+    assert rules
+    assert all(rule["category"] == category for rule in rules)
+    assert all("recommendation " in rule["protocol_reference"] for rule in rules)
+
+
+def test_orthopedic_rules_preserve_ng38_scope():
+    rules = validate_dataset_files(
+        SYMPTOMS_PATH,
+        DEPARTMENTS_PATH,
+        STAGE_6_RULE_PATHS[2],
+        expected_category="orthopedic_trauma",
+    )
+    rules_by_id = {rule["rule_id"]: rule for rule in rules}
+
+    assert rules_by_id["OT-01"]["conditions"] == [
+        "orthopedic_trauma_suspected_knee_fracture_person_over_2"
+    ]
+    assert rules_by_id["OT-02"]["conditions"] == [
+        "orthopedic_trauma_reduction_or_cast_splint_traction"
+    ]
+    assert "Ottawa knee rules" in rules_by_id["OT-01"]["checklist_action"]
+    assert "before and after the intervention" in rules_by_id["OT-02"][
+        "checklist_action"
+    ]
 
 
 def test_valid_in_memory_data_passes_validation():

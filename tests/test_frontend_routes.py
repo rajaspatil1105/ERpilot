@@ -72,18 +72,27 @@ def test_assessment_page_uses_canonical_keys_and_preserves_unknown_state(client)
     for key in canonical_keys:
         assert key in page
     assert 'data-state="UNKNOWN"' in page
-    assert 'evidence: { ...states }' in script
+    assert "evidence: Object.fromEntries" in script
+    assert "Object.entries(states).filter" in script
+    assert "symptomCategories.get(key) === categorySelect.value" in script
     assert 'fetch("/api/triage"' in script
 
 
-def test_unsupported_categories_are_disabled_on_assessment_page(client):
+def test_stage_6_categories_are_enabled_by_assessment_script(client):
     page = client.get("/assessment").get_data(as_text=True)
+    script = client.get("/static/js/assessment.js").get_data(as_text=True)
 
     assert 'value="brain_trauma"' in page
     assert re.search(r'value="chest_trauma"\s+disabled', page)
     assert re.search(r'value="abdominal_trauma"\s+disabled', page)
     assert re.search(r'value="orthopedic_trauma"\s+disabled', page)
     assert "(unavailable)" in page
+    for category in (
+        "chest_trauma",
+        "abdominal_trauma",
+        "orthopedic_trauma",
+    ):
+        assert f'"{category}"' in script
 
 
 def test_results_page_preserves_api_result_fields_and_limitation(client):

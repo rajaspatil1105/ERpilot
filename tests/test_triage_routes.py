@@ -201,7 +201,7 @@ def test_triage_missing_or_malformed_fields_are_rejected(client, payload):
     assert response.get_json()["error"]
 
 
-def test_invalid_and_unsupported_categories_are_distinguished(client):
+def test_invalid_categories_are_rejected_and_stage_6_categories_work(client):
     patient_id = register_patient(client)
 
     invalid = client.post(
@@ -222,8 +222,60 @@ def test_invalid_and_unsupported_categories_are_distinguished(client):
     )
 
     assert invalid.status_code == 400
-    assert unsupported.status_code == 422
-    assert unsupported.get_json()["status"] == "UNSUPPORTED_CATEGORY"
+    assert unsupported.status_code == 201
+    assert unsupported.get_json()["category"] == "chest_trauma"
+    assert unsupported.get_json()["outcome"] == "NO_MATCH"
+
+
+@pytest.mark.parametrize(
+    ("category", "condition", "protocol"),
+    [
+        (
+            "chest_trauma",
+            "chest_trauma_negative_chest_efast",
+            "NICE NG39",
+        ),
+        (
+            "abdominal_trauma",
+            "abdominal_trauma_negative_fast",
+            "NICE NG39",
+        ),
+        (
+            "orthopedic_trauma",
+            "orthopedic_trauma_suspected_knee_fracture_person_over_2",
+            "NICE NG38",
+        ),
+    ],
+)
+def test_stage_6_categories_load_their_own_rules(
+    client,
+    app,
+    category,
+    condition,
+    protocol,
+):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": category,
+            "evidence": {condition: "PRESENT"},
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["category"] == category
+    assert body["outcome"] == "FULL_MATCH"
+    assert len(body["inference_result"]["evaluations"]) >= 1
+    assert all(
+        protocol in evaluation["protocol_reference"]
+        for evaluation in body["inference_result"]["evaluations"]
+    )
+    with app.app_context():
+        assessment = db.session.get(Assessment, body["assessment_id"])
+        assert assessment.category == category
 
 
 @pytest.mark.parametrize(

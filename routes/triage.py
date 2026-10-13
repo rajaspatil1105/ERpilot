@@ -1,4 +1,4 @@
-"""Patient registration and brain-trauma triage API routes."""
+"""Patient registration and trauma triage API routes."""
 
 from __future__ import annotations
 
@@ -22,6 +22,8 @@ from inference_engine.rule_validator import (
     ALLOWED_CATEGORIES,
     ValidationError,
     load_json_file,
+    validate_core_rules,
+    validate_departments,
     validate_symptoms,
 )
 from models.assessment import Assessment
@@ -33,8 +35,14 @@ triage_bp = Blueprint("triage", __name__, url_prefix="/api")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SYMPTOMS_PATH = PROJECT_ROOT / "knowledge_base" / "symptoms.json"
-RULES_PATH = PROJECT_ROOT / "rule_base" / "core" / "brain_trauma_rules.json"
-SUPPORTED_RULE_CATEGORIES = {"brain_trauma"}
+DEPARTMENTS_PATH = PROJECT_ROOT / "knowledge_base" / "departments.json"
+RULES_PATHS = {
+    "brain_trauma": PROJECT_ROOT / "rule_base" / "core" / "brain_trauma_rules.json",
+    "chest_trauma": PROJECT_ROOT / "rule_base" / "core" / "chest_trauma_rules.json",
+    "abdominal_trauma": PROJECT_ROOT / "rule_base" / "core" / "abdominal_trauma_rules.json",
+    "orthopedic_trauma": PROJECT_ROOT / "rule_base" / "core" / "orthopedic_trauma_rules.json",
+}
+SUPPORTED_RULE_CATEGORIES = set(RULES_PATHS)
 
 
 @triage_bp.post("/patients")
@@ -94,7 +102,7 @@ def create_patient():
 
 @triage_bp.post("/triage")
 def create_triage_assessment():
-    """Evaluate and persist a brain-trauma assessment."""
+    """Evaluate and persist a trauma assessment."""
 
     try:
         payload = _request_object()
@@ -146,7 +154,7 @@ def create_triage_assessment():
         symptom_keys = _load_symptom_keys()
         evidence = _validate_evidence(payload["evidence"], symptom_keys)
         vitals = _validate_vitals(payload.get("vitals", {}))
-        rules = _load_rules()
+        rules = _load_rules(category)
         inference_result = _evaluate_rules(rules, evidence)
     except RequestValidationError as error:
         return _error(error.message, 400, error.field)
@@ -221,14 +229,28 @@ def _load_symptom_keys() -> set[str]:
     return validate_symptoms(data, SYMPTOMS_PATH)
 
 
-def _load_rules() -> list[dict[str, Any]]:
-    data = load_json_file(RULES_PATH)
-    if not isinstance(data, dict) or set(data) != {"rules"}:
-        raise RuleDataError("Rule file must contain exactly a rules field.")
-    rules = data["rules"]
-    if not isinstance(rules, list):
-        raise RuleDataError("Rule file rules field must be a list.")
-    return rules
+def _load_rules(category: str = "brain_trauma") -> list[dict[str, Any]]:
+    rules_path = RULES_PATHS.get(category)
+    if rules_path is None:
+        raise RuleDataError(f"No rule file is configured for {category!r}.")
+    rule_data = load_json_file(rules_path)
+    symptom_data = load_json_file(SYMPTOMS_PATH)
+    department_data = load_json_file(DEPARTMENTS_PATH)
+    symptom_keys = validate_symptoms(symptom_data, SYMPTOMS_PATH)
+    department_catalog = validate_departments(
+        department_data,
+        DEPARTMENTS_PATH,
+    )
+    try:
+        return validate_core_rules(
+            rule_data,
+            symptom_keys,
+            department_catalog,
+            rules_path,
+            expected_category=category,
+        )
+    except ValidationError as error:
+        raise RuleDataError(str(error)) from error
 
 
 def _validate_evidence(

@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "rule_id": "OT-01",
+      "category": "orthopedic_trauma",
+      "conditions": [
+        "orthopedic_trauma_suspected_knee_fracture_person_over_2"
+      ],
+      "conclusion": "orthopedic_trauma_knee_imaging_decision_requires_review",
+      "priority_flag": "YELLOW",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented suspected knee fracture in a person over 2 for clinician review of whether the Ottawa knee rules indicate an X-ray.",
+      "protocol_reference": "NICE NG38, recommendation 1.2.1: https://www.nice.org.uk/guidance/ng38/chapter/Recommendations"
+    },
+    {
+      "rule_id": "OT-02",
+      "category": "orthopedic_trauma",
+      "conditions": [
+        "orthopedic_trauma_reduction_or_cast_splint_traction"
+      ],
+      "conclusion": "orthopedic_trauma_neurovascular_documentation_required",
+      "priority_flag": "ORANGE",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented reduction or cast, splint, or traction application for clinician review of neurovascular assessment before and after the intervention, with findings documented.",
+      "protocol_reference": "NICE NG38, recommendation 1.5.7: https://www.nice.org.uk/guidance/ng38/chapter/Recommendations"
+    }
+  ]
+}

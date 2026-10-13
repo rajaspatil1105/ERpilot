@@ -5,6 +5,7 @@
     const status = document.getElementById("assessment-status");
     const patientContext = document.getElementById("patient-context");
     const symptomData = document.getElementById("symptom-data");
+    const categorySelect = document.getElementById("category");
     const vitalsList = document.getElementById("vitals-list");
     const addVitalButton = document.getElementById("add-vital");
     const states = {};
@@ -14,6 +15,7 @@
         || !status
         || !patientContext
         || !symptomData
+        || !categorySelect
         || !vitalsList
         || !addVitalButton
     ) {
@@ -28,9 +30,47 @@
         return;
     }
 
+    const supportedCategories = new Set([
+        "brain_trauma",
+        "chest_trauma",
+        "abdominal_trauma",
+        "orthopedic_trauma",
+    ]);
+    document.querySelectorAll("#category option").forEach((option) => {
+        if (supportedCategories.has(option.value)) {
+            option.disabled = false;
+            option.textContent = option.value
+                .replaceAll("_", " ")
+                .replace(/\b\w/g, (letter) => letter.toUpperCase());
+            option.textContent += " (supported)";
+        }
+    });
+
     for (const symptom of symptoms) {
         states[symptom.key] = "UNKNOWN";
     }
+    const symptomCategories = new Map(
+        symptoms.map((symptom) => [symptom.key, symptom.category]),
+    );
+    const symptomLegend = document.querySelector("#symptom-list")
+        ?.closest("fieldset")
+        ?.querySelector("legend");
+
+    function updateCategorySymptoms() {
+        const category = categorySelect.value;
+        document.querySelectorAll(".symptom-card").forEach((card) => {
+            const key = card.querySelector(".state-button")?.dataset.key;
+            card.closest(".col-md-6").hidden = (
+                symptomCategories.get(key) !== category
+            );
+        });
+        if (symptomLegend) {
+            symptomLegend.textContent = `${category.replaceAll("_", " ")} evidence`;
+        }
+    }
+
+    categorySelect.addEventListener("change", updateCategorySymptoms);
+    updateCategorySymptoms();
     let vitalCounter = 0;
 
     function showStatus(message, kind) {
@@ -157,8 +197,12 @@
 
         const payload = {
             patient_id: patient.id,
-            category: document.getElementById("category").value,
-            evidence: { ...states },
+            category: categorySelect.value,
+            evidence: Object.fromEntries(
+                Object.entries(states).filter(
+                    ([key]) => symptomCategories.get(key) === categorySelect.value,
+                ),
+            ),
             vitals,
         };
         showStatus("Evaluating recorded evidence...", "info");

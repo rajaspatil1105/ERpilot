@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "rule_id": "AT-01",
+      "category": "abdominal_trauma",
+      "conditions": [
+        "abdominal_trauma_negative_fast"
+      ],
+      "conclusion": "abdominal_trauma_haemorrhage_not_excluded",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the negative FAST for clinician review; it does not exclude intraperitoneal or retroperitoneal haemorrhage.",
+      "protocol_reference": "NICE NG39, recommendation 1.5.30: https://www.nice.org.uk/guidance/ng39/chapter/Recommendations"
+    }
+  ]
+}

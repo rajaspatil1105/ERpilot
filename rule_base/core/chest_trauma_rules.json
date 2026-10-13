@@ -1,0 +1,16 @@
+{
+  "rules": [
+    {
+      "rule_id": "CT-01",
+      "category": "chest_trauma",
+      "conditions": [
+        "chest_trauma_negative_chest_efast"
+      ],
+      "conclusion": "chest_trauma_pneumothorax_not_excluded",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the negative chest eFAST for clinician review; it does not exclude pneumothorax.",
+      "protocol_reference": "NICE NG39, recommendation 1.3.3: https://www.nice.org.uk/guidance/ng39/chapter/Recommendations"
+    }
+  ]
+}

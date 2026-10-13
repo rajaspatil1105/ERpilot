@@ -20,6 +20,11 @@ EXPECTED_BRAIN_RULE_IDS = {f"BT-{number:02d}" for number in range(1, 8)}
 PROTOCOL_URL = (
     "https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
 )
+PROTOCOL_URLS = {
+    PROTOCOL_URL,
+    "https://www.nice.org.uk/guidance/ng39/chapter/Recommendations",
+    "https://www.nice.org.uk/guidance/ng38/chapter/Recommendations",
+}
 
 SYMPTOM_FIELDS = {
     "key",
@@ -139,6 +144,7 @@ def validate_core_rules(
     symptom_keys: set[str],
     department_catalog: Mapping[str, str],
     source: str | Path = "brain_trauma_rules.json",
+    expected_category: str | None = None,
 ) -> list[dict[str, Any]]:
     """Validate core rules against canonical symptoms and departments."""
 
@@ -177,6 +183,11 @@ def validate_core_rules(
             raise ValidationError(
                 f"{location} ({rule_id}).category: invalid category "
                 f"{rule['category']!r}"
+            )
+        if expected_category is not None and rule["category"] != expected_category:
+            raise ValidationError(
+                f"{location} ({rule_id}).category: expected "
+                f"{expected_category!r}, got {rule['category']!r}"
             )
         if rule["priority_flag"] not in ALLOWED_PRIORITIES:
             raise ValidationError(
@@ -219,20 +230,22 @@ def validate_core_rules(
         )
         validated_rules.append(rule)
 
-    missing_expected = EXPECTED_BRAIN_RULE_IDS - rule_ids
-    unexpected_brain_ids = rule_ids - EXPECTED_BRAIN_RULE_IDS
-    if missing_expected:
-        missing = ", ".join(sorted(missing_expected))
-        raise ValidationError(
-            f"{source_name}.rules: missing expected brain-trauma rule IDs: "
-            f"{missing}"
-        )
-    if unexpected_brain_ids:
-        unexpected = ", ".join(sorted(unexpected_brain_ids))
-        raise ValidationError(
-            f"{source_name}.rules: unexpected brain-trauma rule IDs: "
-            f"{unexpected}"
-        )
+    categories = {rule["category"] for rule in validated_rules}
+    if categories == {"brain_trauma"}:
+        missing_expected = EXPECTED_BRAIN_RULE_IDS - rule_ids
+        unexpected_brain_ids = rule_ids - EXPECTED_BRAIN_RULE_IDS
+        if missing_expected:
+            missing = ", ".join(sorted(missing_expected))
+            raise ValidationError(
+                f"{source_name}.rules: missing expected brain-trauma rule IDs: "
+                f"{missing}"
+            )
+        if unexpected_brain_ids:
+            unexpected = ", ".join(sorted(unexpected_brain_ids))
+            raise ValidationError(
+                f"{source_name}.rules: unexpected brain-trauma rule IDs: "
+                f"{unexpected}"
+            )
 
     return validated_rules
 
@@ -241,6 +254,7 @@ def validate_dataset_files(
     symptoms_path: str | Path,
     departments_path: str | Path,
     rules_path: str | Path,
+    expected_category: str | None = None,
 ) -> list[dict[str, Any]]:
     """Load and validate the Stage 2 datasets together."""
 
@@ -254,6 +268,7 @@ def validate_dataset_files(
         symptom_keys,
         department_catalog,
         rules_path,
+        expected_category,
     )
 
 
@@ -305,7 +320,9 @@ def _require_traceable_protocol_reference(
     value: str,
     location: str,
 ) -> None:
-    if PROTOCOL_URL not in value or "recommendation " not in value.lower():
+    if not any(url in value for url in PROTOCOL_URLS) or (
+        "recommendation " not in value.lower()
+    ):
         raise ValidationError(
             f"{location}: must include a source locator and recommendation "
             f"reference ({PROTOCOL_URL})"

@@ -238,3 +238,50 @@ This is a concise paraphrase of the supplied finding, not a quotation.
   unresolved.
 - All clinical content requires qualified clinician review before any
   real-world use.
+
+## 7. Stage 6 category-specific sources
+
+### Chest trauma
+
+- NICE, *Major trauma: assessment and initial management* (NG39),
+  recommendation 1.3.3:
+  <https://www.nice.org.uk/guidance/ng39/chapter/Recommendations>
+- The encoded criterion is limited to a documented negative chest eFAST.
+  It preserves NICE's warning that this result does not exclude a
+  pneumothorax. It is not a diagnosis and does not replace clinician review.
+
+### Abdominal trauma
+
+- NICE, *Major trauma: assessment and initial management* (NG39),
+  recommendation 1.5.30:
+  <https://www.nice.org.uk/guidance/ng39/chapter/Recommendations>
+- The encoded criterion is limited to a documented negative FAST. It preserves
+  NICE's warning that this result does not exclude intraperitoneal or
+  retroperitoneal haemorrhage. No haemodynamic threshold or diagnosis is
+  inferred.
+
+### Orthopedic trauma
+
+- NICE, *Fractures (non-complex): assessment and management* (NG38),
+  recommendation 1.2.1:
+  <https://www.nice.org.uk/guidance/ng38/chapter/Recommendations>
+- NICE NG38, recommendation 1.5.7:
+  <https://www.nice.org.uk/guidance/ng38/chapter/Recommendations>
+- The encoded criteria flag a documented suspected knee fracture in a person
+  over 2 for clinician review of whether the Ottawa knee rules indicate an
+  X-ray. They also flag a documented fracture/dislocation intervention for
+  neurovascular assessment before and after the intervention, with findings
+  documented. The prototype does not diagnose fractures, apply the Ottawa
+  knee rules, assess neurovascular status, or provide procedural instructions.
+
+### Stage 6 priority-display assumption and exclusions
+
+The `RED`, `ORANGE`, and `YELLOW` values in the Stage 6 rule files are
+provisional ERPilot display mappings only. NICE NG39 and NG38 do not define
+these ERPilot software priorities, and the mappings are not validated triage
+classifications.
+
+The implementation deliberately excludes numerical haemodynamic thresholds,
+imaging orders, diagnoses, treatment instructions, open-fracture management,
+and clinician-performed examination findings that cannot be established by
+this application. Unknown evidence remains distinct from absent evidence.
