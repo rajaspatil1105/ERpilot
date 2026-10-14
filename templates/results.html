@@ -5,14 +5,15 @@
 {% block content %}
 <section class="page-heading mb-4">
     <p class="eyebrow">Step 3</p>
-    <h1>Assessment results</h1>
+    <h1>Review assessment results</h1>
     <p class="lead">
-        Review the recorded evidence and the deterministic rule evaluation.
-        These results are not a diagnosis or a definitive clinical triage decision.
+        Review the recorded evidence, rule evaluations, follow-up questions,
+        and configured clinician-review items. These results are not a
+        diagnosis or a definitive clinical triage decision.
     </p>
 </section>
 
-<div id="results-error" class="alert alert-info" role="status">
+<div id="results-error" class="alert alert-info" role="status" aria-live="polite">
     Submit an assessment to view its results.
 </div>
 
@@ -32,35 +33,70 @@
         </div>
     </div>
 
-    <div class="alert alert-secondary mb-4">
-        <strong>Backward-chaining follow-up workflow:</strong>
-        Questions below are selected from unresolved conditions in applicable
-        rule candidates. They are software prompts for reviewing recorded
-        evidence, not diagnoses or treatment instructions.
-    </div>
-
-    <section class="mb-4">
-        <h2 class="h3">Applicable rule evaluations</h2>
-        <div id="matched-rules" class="row g-3"></div>
+    <section class="results-panel mb-4" aria-labelledby="rule-results-heading">
+        <div class="section-heading-row mb-3">
+            <div>
+                <p class="eyebrow mb-1">Inference review</p>
+                <h2 id="rule-results-heading" class="h3 mb-1">
+                    Applicable rule evaluations
+                </h2>
+                <p class="text-muted mb-0">
+                    Full matches, partial matches, and non-matches are shown
+                    separately. A match is a software review flag, not a
+                    confirmed diagnosis.
+                </p>
+            </div>
+            <div class="status-key" aria-label="Rule status key">
+                <span class="status-key-item"><span class="status-dot status-dot-full"></span>Full</span>
+                <span class="status-key-item"><span class="status-dot status-dot-partial"></span>Partial</span>
+                <span class="status-key-item"><span class="status-dot status-dot-none"></span>No match</span>
+            </div>
+        </div>
+        <div id="matched-rules" class="rule-groups"></div>
     </section>
 
-    <section class="mb-4">
-        <h2 class="h3">Rules without a match</h2>
+    <section class="results-panel mb-4" aria-labelledby="unmatched-heading">
+        <h2 id="unmatched-heading" class="h3">Rules without a match</h2>
         <p id="no-match-message" class="text-muted"></p>
-        <div id="unmatched-rules" class="row g-3"></div>
+        <div id="unmatched-rules" class="rule-groups"></div>
     </section>
 
-    <section class="mb-4" aria-labelledby="follow-up-heading">
-        <h2 id="follow-up-heading" class="h3">Relevant follow-up questions</h2>
-        <p class="text-muted">
-            Answer only from information available to the clinician. Select
-            Unknown when the evidence is unresolved.
-        </p>
+    <section class="results-panel mb-4" aria-labelledby="follow-up-heading">
+        <div class="section-heading-row mb-3">
+            <div>
+                <p class="eyebrow mb-1">Backward chaining</p>
+                <h2 id="follow-up-heading" class="h3 mb-1">
+                    Relevant follow-up questions
+                </h2>
+                <p class="text-muted mb-0">
+                    Questions are selected from unresolved conditions in
+                    applicable partial rules. Select Unknown when evidence
+                    remains unresolved.
+                </p>
+            </div>
+        </div>
         <div id="follow-up-questions" class="row g-3"></div>
     </section>
 
-    <section class="mb-4">
-        <h2 class="h3">Special-condition modifiers</h2>
+    <section class="results-panel mb-4" aria-labelledby="checklist-heading">
+        <div class="section-heading-row mb-3">
+            <div>
+                <p class="eyebrow mb-1">Clinician review</p>
+                <h2 id="checklist-heading" class="h3 mb-1">
+                    Configured review checklist
+                </h2>
+                <p class="text-muted mb-0">
+                    These are source-linked review items from the returned rule
+                    metadata. Checking an item records page review only; it
+                    does not order, prescribe, or complete a clinical action.
+                </p>
+            </div>
+        </div>
+        <div id="review-checklist" class="review-checklist"></div>
+    </section>
+
+    <section class="results-panel mb-4" aria-labelledby="modifier-heading">
+        <h2 id="modifier-heading" class="h3">Special-condition modifiers</h2>
         <p class="text-muted">
             Modifiers are additive review flags. They do not replace or
             rewrite the core trauma outcome.
@@ -68,8 +104,8 @@
         <div id="modifier-rules" class="row g-3"></div>
     </section>
 
-    <section class="mb-4">
-        <h2 class="h3">Download report</h2>
+    <section class="results-panel mb-4" aria-labelledby="reports-heading">
+        <h2 id="reports-heading" class="h3">Download report</h2>
         <p class="text-muted">
             Reports preserve the recorded evidence and software evaluation for
             review. They do not establish a diagnosis or treatment plan.

@@ -7,21 +7,28 @@
     <p class="eyebrow">Step 2</p>
     <h1>Record assessment evidence</h1>
     <p class="lead">
-        Select an evidence state for each canonical criterion. Unanswered
-        criteria remain <strong>UNKNOWN</strong>; they are not treated as absent.
+        Review the configured criteria and record each item as
+        <strong>Yes</strong>, <strong>No</strong>, or <strong>Unknown</strong>.
+        Unknown evidence remains unresolved and is never treated as a negative
+        finding.
     </p>
 </section>
 
-<div id="assessment-status" class="alert d-none" role="status"></div>
+<div id="assessment-status" class="alert d-none" role="status" aria-live="polite"></div>
 <div id="patient-context" class="context-card mb-4" role="status"></div>
 
 <form id="assessment-form" novalidate>
     <div class="card form-card mb-4">
         <div class="card-body p-4">
             <div class="row align-items-end g-3">
-                <div class="col-md-7">
-                    <label class="form-label" for="category">Category</label>
-                    <select class="form-select" id="category" name="category">
+                <div class="col-lg-7">
+                    <label class="form-label" for="category">Assessment category</label>
+                    <select
+                        class="form-select"
+                        id="category"
+                        name="category"
+                        aria-describedby="category-help"
+                    >
                         {% for category in categories %}
                         <option
                             value="{{ category }}"
@@ -36,87 +43,148 @@
                         </option>
                         {% endfor %}
                     </select>
-                    <div class="form-text">
-                        Core trauma categories and special-condition modifiers are
-                        evaluated separately. Unavailable categories remain disabled.
+                    <div id="category-help" class="form-text">
+                        Choose an available category. Special-condition
+                        modifiers are recorded separately for every assessment.
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div
+                        id="evidence-count"
+                        class="evidence-count"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        Answered: 0 | Remaining: 0
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <fieldset class="mb-4">
-        <legend class="h2">Brain-trauma evidence</legend>
-        <p class="text-muted">
-            Use the buttons to record what is known. The criteria and labels
-            below come from the canonical knowledge base.
-        </p>
-        <div id="symptom-list" class="row g-3">
-            {% for symptom in symptoms %}
-            {% if symptom.category != "special_condition" %}
-            <div class="col-md-6">
-                <article class="card symptom-card h-100">
-                    <div class="card-body">
-                        <h3 class="h5">{{ symptom.label }}</h3>
-                        <p class="small text-muted mb-3">
-                            {{ symptom.description }}
-                        </p>
-                        <div
-                            class="btn-group evidence-buttons"
-                            role="group"
-                            aria-label="Evidence state for {{ symptom.label }}"
-                        >
-                            <button
-                                class="btn btn-outline-success state-button"
-                                type="button"
-                                data-key="{{ symptom.key }}"
-                                data-state="PRESENT"
-                            >
-                                Present
-                            </button>
-                            <button
-                                class="btn btn-outline-danger state-button"
-                                type="button"
-                                data-key="{{ symptom.key }}"
-                                data-state="ABSENT"
-                            >
-                                Absent
-                            </button>
-                            <button
-                                class="btn btn-outline-secondary state-button state-selected"
-                                type="button"
-                                data-key="{{ symptom.key }}"
-                                data-state="UNKNOWN"
-                                aria-pressed="true"
-                            >
-                                Unknown
-                            </button>
-                        </div>
-                        <div
-                            class="small mt-2 evidence-status"
-                            data-status-for="{{ symptom.key }}"
-                        >
-                            Recorded state: UNKNOWN
-                        </div>
-                    </div>
-                </article>
+    <section aria-labelledby="core-evidence-heading" class="mb-4">
+        <div class="section-heading-row mb-3">
+            <div>
+                <p class="eyebrow mb-1">Core evidence</p>
+                <h2 id="core-evidence-heading" class="h3 mb-1">
+                    Category checklist
+                </h2>
+                <p class="text-muted mb-0">
+                    These criteria are rendered from the validated symptom
+                    knowledge base.
+                </p>
             </div>
-            {% endif %}
+            <span class="badge text-bg-light border">Yes / No / Unknown</span>
+        </div>
+
+        <div id="category-checklists">
+            {% for category in categories %}
+            <section
+                class="symptom-category-panel"
+                data-category="{{ category }}"
+                aria-labelledby="heading-{{ category }}"
+                {% if category not in supported_categories %}hidden{% endif %}
+            >
+                <div class="category-panel-heading">
+                    <h3 id="heading-{{ category }}" class="h4">
+                        {{ category|replace('_', ' ')|title }}
+                    </h3>
+                    {% if category not in supported_categories %}
+                    <span class="badge text-bg-secondary">Unavailable</span>
+                    {% else %}
+                    <span class="badge text-bg-primary">Available</span>
+                    {% endif %}
+                </div>
+                <div class="row g-3">
+                    {% for symptom in symptoms %}
+                    {% if symptom.category == category %}
+                    <div class="col-md-6">
+                        <article
+                            class="card symptom-card h-100"
+                            data-symptom-key="{{ symptom.key }}"
+                        >
+                            <div class="card-body">
+                                <h4 class="h5">{{ symptom.label }}</h4>
+                                <p class="small text-muted mb-3">
+                                    {{ symptom.description }}
+                                </p>
+                                <div
+                                    class="btn-group evidence-buttons"
+                                    role="group"
+                                    aria-label="Evidence state for {{ symptom.label }}"
+                                >
+                                    <button
+                                        class="btn btn-outline-success state-button"
+                                        type="button"
+                                        data-key="{{ symptom.key }}"
+                                        data-state="PRESENT"
+                                        aria-pressed="false"
+                                    >
+                                        Yes
+                                    </button>
+                                    <button
+                                        class="btn btn-outline-danger state-button"
+                                        type="button"
+                                        data-key="{{ symptom.key }}"
+                                        data-state="ABSENT"
+                                        aria-pressed="false"
+                                    >
+                                        No
+                                    </button>
+                                    <button
+                                        class="btn btn-outline-secondary state-button state-selected"
+                                        type="button"
+                                        data-key="{{ symptom.key }}"
+                                        data-state="UNKNOWN"
+                                        aria-pressed="true"
+                                    >
+                                        Unknown
+                                    </button>
+                                </div>
+                                <div
+                                    class="small mt-2 evidence-status"
+                                    data-status-for="{{ symptom.key }}"
+                                >
+                                    Recorded state: Unknown
+                                </div>
+                                <div class="small text-muted mt-2">
+                                    Source: {{ symptom.source_reference }}
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
             {% endfor %}
         </div>
-    </fieldset>
+    </section>
 
-    <fieldset class="mb-4">
-        <legend class="h2">Special-condition modifiers</legend>
-        <p class="text-muted">
-            Record only documented or clinician-suspected special conditions.
-            Unknown remains unknown and does not fire a modifier.
-        </p>
+    <section
+        class="mb-4"
+        aria-labelledby="modifier-evidence-heading"
+    >
+        <div class="section-heading-row mb-3">
+            <div>
+                <p class="eyebrow mb-1">Additional context</p>
+                <h2 id="modifier-evidence-heading" class="h3 mb-1">
+                    Special-condition modifiers
+                </h2>
+                <p class="text-muted mb-0">
+                    Record documented or suspected context separately. These
+                    flags do not replace the core trauma result.
+                </p>
+            </div>
+        </div>
         <div id="modifier-list" class="row g-3">
             {% for symptom in symptoms %}
             {% if symptom.category == "special_condition" %}
             <div class="col-md-6">
-                <article class="card symptom-card modifier-card h-100">
+                <article
+                    class="card symptom-card modifier-card h-100"
+                    data-symptom-key="{{ symptom.key }}"
+                >
                     <div class="card-body">
                         <h3 class="h5">{{ symptom.label }}</h3>
                         <p class="small text-muted mb-3">
@@ -132,16 +200,18 @@
                                 type="button"
                                 data-key="{{ symptom.key }}"
                                 data-state="PRESENT"
+                                aria-pressed="false"
                             >
-                                Present
+                                Yes
                             </button>
                             <button
                                 class="btn btn-outline-danger state-button"
                                 type="button"
                                 data-key="{{ symptom.key }}"
                                 data-state="ABSENT"
+                                aria-pressed="false"
                             >
-                                Absent
+                                No
                             </button>
                             <button
                                 class="btn btn-outline-secondary state-button state-selected"
@@ -157,7 +227,10 @@
                             class="small mt-2 evidence-status"
                             data-status-for="{{ symptom.key }}"
                         >
-                            Recorded state: UNKNOWN
+                            Recorded state: Unknown
+                        </div>
+                        <div class="small text-muted mt-2">
+                            Source: {{ symptom.source_reference }}
                         </div>
                     </div>
                 </article>
@@ -165,7 +238,7 @@
             {% endif %}
             {% endfor %}
         </div>
-    </fieldset>
+    </section>
 
     <fieldset class="card form-card mb-4">
         <div class="card-body p-4">
@@ -186,7 +259,11 @@
     </fieldset>
 
     <div class="d-flex flex-wrap gap-2 align-items-center">
-        <button class="btn btn-primary" type="submit">
+        <button
+            id="submit-assessment"
+            class="btn btn-primary"
+            type="submit"
+        >
             Submit assessment
         </button>
         <a class="btn btn-outline-secondary" href="{{ url_for('register_page') }}">

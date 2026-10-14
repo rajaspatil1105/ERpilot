@@ -6,8 +6,10 @@
     const patientContext = document.getElementById("patient-context");
     const symptomData = document.getElementById("symptom-data");
     const categorySelect = document.getElementById("category");
+    const evidenceCount = document.getElementById("evidence-count");
     const vitalsList = document.getElementById("vitals-list");
     const addVitalButton = document.getElementById("add-vital");
+    const submitButton = document.getElementById("submit-assessment");
     const states = {};
 
     if (
@@ -16,8 +18,10 @@
         || !patientContext
         || !symptomData
         || !categorySelect
+        || !evidenceCount
         || !vitalsList
         || !addVitalButton
+        || !submitButton
     ) {
         return;
     }
@@ -25,57 +29,54 @@
     let symptoms;
     try {
         symptoms = JSON.parse(symptomData.textContent);
+        if (
+            !Array.isArray(symptoms)
+            || symptoms.some((symptom) => (
+                !symptom
+                || typeof symptom.key !== "string"
+                || typeof symptom.category !== "string"
+            ))
+        ) {
+            throw new Error("The symptom data is not a valid list.");
+        }
     } catch (_error) {
         showStatus("The canonical symptom data could not be loaded.", "danger");
         return;
     }
 
-    const supportedCategories = new Set([
-        "brain_trauma",
-        "chest_trauma",
-        "abdominal_trauma",
-        "orthopedic_trauma",
-    ]);
-    document.querySelectorAll("#category option").forEach((option) => {
-        if (supportedCategories.has(option.value)) {
-            option.disabled = false;
-            option.textContent = option.value
-                .replaceAll("_", " ")
-                .replace(/\b\w/g, (letter) => letter.toUpperCase());
-            option.textContent += " (supported)";
-        }
-    });
-
-    for (const symptom of symptoms) {
-        states[symptom.key] = "UNKNOWN";
-    }
     const symptomCategories = new Map(
         symptoms.map((symptom) => [symptom.key, symptom.category]),
     );
-    const symptomLegend = document.querySelector("#symptom-list")
-        ?.closest("fieldset")
-        ?.querySelector("legend");
+    for (const symptom of symptoms) {
+        states[symptom.key] = "UNKNOWN";
+    }
 
-    function updateCategorySymptoms() {
-        const category = categorySelect.value;
-        document.querySelectorAll(".symptom-card:not(.modifier-card)").forEach((card) => {
-            const key = card.querySelector(".state-button")?.dataset.key;
-            card.closest(".col-md-6").hidden = (
-                symptomCategories.get(key) !== category
-            );
-        });
-        if (symptomLegend) {
-            symptomLegend.textContent = `${category.replaceAll("_", " ")} evidence`;
+    const supportedCategories = new Set(
+        [...categorySelect.options]
+            .filter((option) => !option.disabled)
+            .map((option) => option.value),
+    );
+    if (!supportedCategories.has(categorySelect.value)) {
+        const firstSupported = [...supportedCategories][0];
+        if (firstSupported) {
+            categorySelect.value = firstSupported;
         }
     }
 
-    categorySelect.addEventListener("change", updateCategorySymptoms);
-    updateCategorySymptoms();
     let vitalCounter = 0;
+    let isSubmitting = false;
 
     function showStatus(message, kind) {
         status.className = `alert alert-${kind}`;
         status.textContent = message;
+    }
+
+    function readableState(state) {
+        return {
+            PRESENT: "Yes",
+            ABSENT: "No",
+            UNKNOWN: "Unknown",
+        }[state] || "Unknown";
     }
 
     function getPatient() {
@@ -86,42 +87,53 @@
         }
     }
 
-    const patient = getPatient();
-    if (!patient || !Number.isInteger(patient.id)) {
-        patientContext.className = "alert alert-danger";
-        patientContext.innerHTML = (
-            "No valid patient ID is available. "
-            + '<a href="/register">Register a patient before starting.</a>'
-        );
-        form.querySelector("button[type='submit']").disabled = true;
-    } else {
-        patientContext.textContent = (
-            `Assessment for patient ID ${patient.id}. `
-            + "Confirm the recorded evidence before submitting."
+    function updateCategoryVisibility() {
+        const category = categorySelect.value;
+        document.querySelectorAll(".symptom-category-panel").forEach((panel) => {
+            const visible = panel.dataset.category === category;
+            panel.hidden = !visible;
+        });
+        updateCount();
+    }
+
+    function relevantKeys() {
+        const category = categorySelect.value;
+        return symptoms
+            .filter((symptom) => (
+                symptom.category === category
+                || symptom.category === "special_condition"
+            ))
+            .map((symptom) => symptom.key);
+    }
+
+    function updateCount() {
+        const keys = relevantKeys();
+        const answered = keys.filter((key) => states[key] !== "UNKNOWN").length;
+        const remaining = keys.length - answered;
+        evidenceCount.textContent = (
+            `Answered: ${answered} | Remaining: ${remaining}`
         );
     }
 
     function updateState(key, state, clickedButton) {
         states[key] = state;
-        const buttons = document.querySelectorAll(
-            `.state-button[data-key="${CSS.escape(key)}"]`,
+        const card = document.querySelector(
+            `.symptom-card[data-symptom-key="${CSS.escape(key)}"]`,
         );
-        buttons.forEach((button) => {
+        if (!card) {
+            return;
+        }
+        card.querySelectorAll(".state-button").forEach((button) => {
             const selected = button === clickedButton;
             button.classList.toggle("state-selected", selected);
             button.setAttribute("aria-pressed", String(selected));
         });
-        const statusText = document.querySelector(`[data-status-for="${CSS.escape(key)}"]`);
+        const statusText = card.querySelector(".evidence-status");
         if (statusText) {
-            statusText.textContent = `Recorded state: ${state}`;
+            statusText.textContent = `Recorded state: ${readableState(state)}`;
         }
+        updateCount();
     }
-
-    document.querySelectorAll(".state-button").forEach((button) => {
-        button.addEventListener("click", () => {
-            updateState(button.dataset.key, button.dataset.state, button);
-        });
-    });
 
     function addVitalRow() {
         const rowId = vitalCounter;
@@ -153,8 +165,6 @@
         vitalsList.appendChild(row);
     }
 
-    addVitalButton.addEventListener("click", addVitalRow);
-
     function collectVitals() {
         const vitals = {};
         for (const row of vitalsList.querySelectorAll(".vital-row")) {
@@ -180,8 +190,36 @@
         }
     }
 
+    const patient = getPatient();
+    if (!patient || !Number.isInteger(patient.id)) {
+        patientContext.className = "alert alert-danger";
+        patientContext.textContent = "No valid patient ID is available. ";
+        const link = document.createElement("a");
+        link.href = "/register";
+        link.textContent = "Register a patient before starting.";
+        patientContext.appendChild(link);
+        submitButton.disabled = true;
+    } else {
+        patientContext.textContent = (
+            `Assessment for patient ID ${patient.id}. `
+            + "Confirm the recorded evidence before submitting."
+        );
+    }
+
+    categorySelect.addEventListener("change", updateCategoryVisibility);
+    document.querySelectorAll(".state-button").forEach((button) => {
+        button.addEventListener("click", () => {
+            updateState(button.dataset.key, button.dataset.state, button);
+        });
+    });
+    addVitalButton.addEventListener("click", addVitalRow);
+    updateCategoryVisibility();
+
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
+        if (isSubmitting) {
+            return;
+        }
         if (!patient || !Number.isInteger(patient.id)) {
             showStatus("Register a valid patient before submitting.", "danger");
             return;
@@ -210,6 +248,11 @@
             ),
             vitals,
         };
+
+        isSubmitting = true;
+        submitButton.disabled = true;
+        addVitalButton.disabled = true;
+        submitButton.textContent = "Submitting...";
         showStatus("Evaluating recorded evidence...", "info");
 
         try {
@@ -220,7 +263,9 @@
             });
             const body = await readResponse(response);
             if (!response.ok) {
-                throw new Error(body.error || "The assessment could not be completed.");
+                throw new Error(
+                    body.error || "The assessment could not be completed.",
+                );
             }
             sessionStorage.setItem("erpilotLastAssessment", JSON.stringify(body));
             window.location.assign("/results");
@@ -229,6 +274,10 @@
                 error.message || "The assessment service could not be reached.",
                 "danger",
             );
+            isSubmitting = false;
+            submitButton.disabled = false;
+            addVitalButton.disabled = false;
+            submitButton.textContent = "Submit assessment";
         }
     });
 })();

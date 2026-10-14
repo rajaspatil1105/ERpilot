@@ -82,10 +82,18 @@ def test_assessment_page_uses_canonical_keys_and_preserves_unknown_state(client)
     )
     for key in canonical_keys:
         assert key in page
+    assert page.count('data-state="PRESENT"') >= len(canonical_keys)
+    assert page.count('data-state="ABSENT"') >= len(canonical_keys)
     assert 'data-state="UNKNOWN"' in page
+    assert ">Yes<" in page
+    assert ">No<" in page
+    assert ">Unknown<" in page
+    assert 'id="evidence-count"' in page
+    assert 'class="symptom-category-panel"' in page
     assert "evidence: Object.fromEntries" in script
     assert "Object.entries(states).filter" in script
     assert "symptomCategories.get(key) === categorySelect.value" in script
+    assert "isSubmitting" in script
     assert 'fetch("/api/triage"' in script
 
 
@@ -102,7 +110,8 @@ def test_assessment_page_exposes_separate_modifier_evidence(client):
         assert key in page
     assert "modifier_evidence" in script
     assert '=== "special_condition"' in script
-    assert ".symptom-card:not(.modifier-card)" in script
+    assert 'id="modifier-list"' in page
+    assert 'data-state="UNKNOWN"' in page
 
 
 def test_stage_6_categories_are_enabled_by_assessment_script(client):
@@ -119,7 +128,7 @@ def test_stage_6_categories_are_enabled_by_assessment_script(client):
         "abdominal_trauma",
         "orthopedic_trauma",
     ):
-        assert f'"{category}"' in script
+        assert f'data-category="{category}"' in page
 
 
 def test_results_page_preserves_api_result_fields_and_limitation(client):
@@ -127,7 +136,8 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     script = client.get("/static/js/results.js").get_data(as_text=True)
 
     assert "Applicable rule evaluations" in page
-    assert "Backward-chaining follow-up workflow" in page
+    assert "Relevant follow-up questions" in page
+    assert "Configured review checklist" in page
     for field in (
         "assessment_id",
         "patient_id",
@@ -140,7 +150,13 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
         assert field in script
     assert "No rule matched the recorded evidence" in script
     assert "modifier_result" in script
+    assert "reviewChecklist" in script
+    assert "checklist_action" in script
+    assert "suggested_department" in script
+    assert "protocol_reference" in script
+    assert "No configured option for this finding." in script
     assert 'id="modifier-rules"' in page
+    assert 'id="review-checklist"' in page
     assert 'id="priority-alert"' in page
     assert 'id="report-downloads"' in page
     assert "Provisional RED software-display priority" in script
@@ -148,6 +164,7 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     questions_script = client.get("/static/js/questions.js").get_data(as_text=True)
     assert "follow_up_questions" in questions_script
     assert "/questions/${encodeURIComponent(question.question_id)}" in questions_script
+    assert "Why this is being asked" in questions_script
 
 
 def test_existing_patient_and_triage_api_endpoints_remain_available(client):

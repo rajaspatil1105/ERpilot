@@ -35,21 +35,45 @@
         const column = document.createElement("div");
         column.className = "col-lg-6";
         const card = document.createElement("article");
-        card.className = "card h-100";
+        card.className = "card question-card h-100";
         const body = document.createElement("div");
         body.className = "card-body";
         addText(body, "h3", question.question_id, "h5");
         addText(body, "p", question.prompt);
+
+        const reason = document.createElement("div");
+        reason.className = "question-reason small text-muted mb-3";
+        const ruleIds = Array.isArray(question.required_by_rule_ids)
+            ? question.required_by_rule_ids
+            : [];
+        const conclusions = Array.isArray(question.target_conclusions)
+            ? question.target_conclusions
+            : [];
         addText(
-            body,
-            "p",
-            `Required by rule IDs: ${question.required_by_rule_ids.join(", ")}`,
-            "small text-muted",
+            reason,
+            "strong",
+            "Why this is being asked: ",
         );
+        const reasonText = ruleIds.length
+            ? `the unresolved condition is required by rule ${ruleIds.join(", ")}`
+            : "the server identified this as relevant to the current assessment";
+        reason.appendChild(document.createTextNode(reasonText));
+        if (conclusions.length) {
+            reason.appendChild(
+                document.createTextNode(
+                    ` for ${conclusions.join(", ")}.`,
+                ),
+            );
+        } else {
+            reason.appendChild(document.createTextNode("."));
+        }
+        body.appendChild(reason);
+
         const controls = document.createElement("div");
         controls.className = "btn-group";
         controls.setAttribute("role", "group");
         controls.setAttribute("aria-label", question.prompt);
+        const buttons = [];
         for (const [label, response] of [
             ["Yes", "YES"],
             ["No", "NO"],
@@ -59,8 +83,19 @@
             button.type = "button";
             button.className = "btn btn-outline-primary";
             button.textContent = label;
+            buttons.push(button);
             button.addEventListener("click", async () => {
-                button.disabled = true;
+                if (buttons.some((item) => item.disabled)) {
+                    return;
+                }
+                buttons.forEach((item) => {
+                    item.disabled = true;
+                });
+                card.setAttribute("aria-busy", "true");
+                const oldLabel = button.textContent;
+                button.textContent = "Saving...";
+                const existingError = card.querySelector(".question-error");
+                existingError?.remove();
                 try {
                     const responseObject = await fetch(
                         `/api/patients/${encodeURIComponent(result.patient_id)}`
@@ -72,7 +107,12 @@
                             body: JSON.stringify({ response }),
                         },
                     );
-                    const bodyObject = await responseObject.json();
+                    let bodyObject;
+                    try {
+                        bodyObject = await responseObject.json();
+                    } catch (_error) {
+                        bodyObject = {};
+                    }
                     if (!responseObject.ok) {
                         throw new Error(
                             bodyObject.error
@@ -89,9 +129,13 @@
                         body,
                         "p",
                         error.message,
-                        "alert alert-danger mt-3",
+                        "alert alert-danger mt-3 question-error",
                     );
-                    button.disabled = false;
+                    buttons.forEach((item) => {
+                        item.disabled = false;
+                    });
+                    button.textContent = oldLabel;
+                    card.removeAttribute("aria-busy");
                 }
             });
             controls.appendChild(button);
