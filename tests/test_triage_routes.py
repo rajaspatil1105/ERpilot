@@ -283,6 +283,121 @@ def test_stage_6_categories_load_their_own_rules(
         assert assessment.category == category
 
 
+def test_expanded_category_rules_match_only_their_canonical_evidence(
+    client,
+):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {
+                "paediatric_head_injury_post_traumatic_seizure": "PRESENT",
+                "adult_head_injury_post_traumatic_seizure": "PRESENT",
+            },
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert {item["rule_id"] for item in body["inference_result"]["full_matches"]} == {
+        "BT-05",
+        "BT-P02",
+    }
+    adult_only = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {
+                "adult_head_injury_post_traumatic_seizure": "PRESENT",
+            },
+        },
+    )
+    assert adult_only.status_code == 201
+    assert {
+        item["rule_id"]
+        for item in adult_only.get_json()["inference_result"]["full_matches"]
+    } == {"BT-05"}
+
+
+@pytest.mark.parametrize(
+    ("category", "evidence", "rule_id"),
+    [
+        (
+            "chest_trauma",
+            {
+                "chest_trauma_efast_specialist_team_immediately_available": "PRESENT",
+                "chest_trauma_efast_onward_transfer_not_delayed": "PRESENT",
+            },
+            "CT-02",
+        ),
+        (
+            "abdominal_trauma",
+            {
+                "abdominal_trauma_suspected_haemorrhage_with_unstable_nonresponsive_context": "PRESENT",
+            },
+            "AT-02",
+        ),
+        (
+            "orthopedic_trauma",
+            {
+                "orthopedic_trauma_suspected_ankle_fracture_person_over_5": "PRESENT",
+            },
+            "OT-03",
+        ),
+    ],
+)
+def test_expanded_stage_6_rules_match(client, category, evidence, rule_id):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": category,
+            "evidence": evidence,
+        },
+    )
+
+    assert response.status_code == 201
+    assert rule_id in {
+        item["rule_id"]
+        for item in response.get_json()["inference_result"]["full_matches"]
+    }
+
+
+def test_expanded_multicondition_rule_preserves_unknown_evidence(client):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "chest_trauma",
+            "evidence": {
+                "chest_trauma_efast_specialist_team_immediately_available": "PRESENT",
+            },
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    ct02 = next(
+        item
+        for item in body["inference_result"]["evaluations"]
+        if item["rule_id"] == "CT-02"
+    )
+    assert ct02["match_status"] == "PARTIAL_MATCH"
+    assert ct02["unknown_conditions"] == [
+        "chest_trauma_efast_onward_transfer_not_delayed"
+    ]
+    assert ct02["absent_conditions"] == []
+    assert "CT-02" not in {
+        item["rule_id"]
+        for item in body["inference_result"]["full_matches"]
+    }
+
+
 @pytest.mark.parametrize(
     "evidence",
     [
@@ -380,9 +495,10 @@ def test_valid_brain_triage_persists_full_engine_result(client, app):
     assert body["outcome"] == "FULL_MATCH"
     assert body["disclaimer"]
     evaluations = body["inference_result"]["evaluations"]
-    assert len(evaluations) == 7
+    assert len(evaluations) == 17
     assert {item["rule_id"] for item in evaluations} == {
-        f"BT-{number:02d}" for number in range(1, 8)
+        *{f"BT-{number:02d}" for number in range(1, 8)},
+        *{f"BT-P{number:02d}" for number in range(1, 11)},
     }
     assert all(
         "NICE NG232" in item["protocol_reference"]
@@ -421,7 +537,7 @@ def test_multiple_full_matches_remain_visible(client):
     body = response.get_json()
     assert response.status_code == 201
     assert len(body["inference_result"]["full_matches"]) == 7
-    assert len(body["inference_result"]["evaluations"]) == 7
+    assert len(body["inference_result"]["evaluations"]) == 17
 
 
 def test_rule_loading_failure_does_not_persist_assessment(client, app, monkeypatch):

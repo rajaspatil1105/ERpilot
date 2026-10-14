@@ -23,6 +23,18 @@
       "suggested_department": "Emergency Department",
       "checklist_action": "Flag the documented reduction or cast, splint, or traction application for clinician review of neurovascular assessment before and after the intervention, with findings documented.",
       "protocol_reference": "NICE NG38, recommendation 1.5.7: https://www.nice.org.uk/guidance/ng38/chapter/Recommendations"
+    },
+    {
+      "rule_id": "OT-03",
+      "category": "orthopedic_trauma",
+      "conditions": [
+        "orthopedic_trauma_suspected_ankle_fracture_person_over_5"
+      ],
+      "conclusion": "orthopedic_trauma_ankle_imaging_decision_requires_review",
+      "priority_flag": "YELLOW",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented suspected ankle fracture in a person over 5 for clinician review of whether the Ottawa ankle and foot rules indicate an X-ray; do not apply the rules or order imaging autonomously.",
+      "protocol_reference": "NICE NG38, recommendation 1.2.2: https://www.nice.org.uk/guidance/ng38/chapter/Recommendations"
     }
   ]
 }

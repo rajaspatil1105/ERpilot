@@ -37,6 +37,17 @@ def test_frontend_pages_render_with_disclaimer(client, app):
         assert app.config["EDUCATIONAL_DISCLAIMER"] in page
 
 
+def test_frontend_pages_reference_local_favicon(client):
+    page = client.get("/register").get_data(as_text=True)
+
+    assert 'rel="icon"' in page
+    assert 'href="/static/favicon.svg"' in page
+    favicon = client.get("/static/favicon.svg")
+
+    assert favicon.status_code == 200
+    assert favicon.content_type.startswith("image/svg+xml")
+
+
 def test_home_page_redirects_to_registration(client):
     response = client.get("/")
 

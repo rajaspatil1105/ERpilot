@@ -83,6 +83,126 @@
       "suggested_department": "Emergency Department",
       "checklist_action": "Flag the cited criterion for clinician review of urgent CT head assessment.",
       "protocol_reference": "NICE NG232, recommendation 1.5.8: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P01",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_suspected_non_accidental_injury"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P02",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_post_traumatic_seizure"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P03",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_gcs_below_14_or_baby_gcs_below_15_at_2_hours"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P04",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_gcs_below_15"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P05",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_suspected_open_or_depressed_skull_fracture_or_tense_fontanelle"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P06",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_sign_of_basal_skull_fracture"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P07",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_focal_neurological_deficit"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P08",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_baby_head_bruise_swelling_laceration_over_5cm"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.10: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P09",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_more_than_one_risk_factor_from_1_5_11"
+      ],
+      "conclusion": "paediatric_head_injury_urgent_clinician_review",
+      "priority_flag": "RED",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented paediatric criterion for clinician review of the applicable NICE head-injury pathway; do not infer a diagnosis or order imaging.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.11: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
+    },
+    {
+      "rule_id": "BT-P10",
+      "category": "brain_trauma",
+      "conditions": [
+        "paediatric_head_injury_single_risk_factor_under_observation"
+      ],
+      "conclusion": "paediatric_head_injury_observation_pathway_review",
+      "priority_flag": "YELLOW",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented single paediatric risk factor for clinician review of the observation pathway; do not infer a diagnosis or direct observation duration.",
+      "protocol_reference": "NICE NG232, recommendation 1.5.12: https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
     }
   ]
 }

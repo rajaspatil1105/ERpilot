@@ -23,9 +23,9 @@ qualified clinical review.
 
 | Source | Repository reference | Use in implementation |
 | --- | --- | --- |
-| NICE, *Head injury: assessment and early management* | NG232 recommendations 1.4.2, 1.5.8, and 1.5.13; official URL in `protocols.md` | Brain-trauma criteria, opioid-intoxication context, and anticoagulant-treatment modifier |
-| NICE, *Major trauma: assessment and initial management* | NG39 recommendations 1.3.3 and 1.5.30 | Negative chest eFAST and negative FAST limitations |
-| NICE, *Fractures (non-complex): assessment and management* | NG38 recommendations 1.2.1 and 1.5.7 | Orthopedic knee-imaging review and neurovascular documentation review |
+| NICE, *Head injury: assessment and early management* | NG232 recommendations 1.4.2, 1.5.8, 1.5.10, 1.5.11, 1.5.12, and 1.5.13; official URL in `protocols.md` | Adult and paediatric brain-trauma criteria, opioid-intoxication context, and anticoagulant-treatment modifier |
+| NICE, *Major trauma: assessment and initial management* | NG39 recommendations 1.3.2, 1.3.3, 1.5.29, and 1.5.30 | eFAST context and negative chest eFAST and FAST limitations |
+| NICE, *Fractures (non-complex): assessment and management* | NG38 recommendations 1.2.1, 1.2.2, and 1.5.7 | Orthopedic knee- and ankle-imaging review and neurovascular documentation review |
 | ACOG, *Guidelines for Diagnostic Imaging During Pregnancy and Lactation* | Committee Opinion 723; official URL in `protocols.md` | Pregnancy imaging-review modifier |
 | NICE, *Drug allergy: diagnosis and management* | CG183 recommendation 1.2.5 | Allergy-information visibility modifier |
 | American College of Surgeons Trauma Quality Programs | Source index only in `protocols.md` | Not used as direct evidence for a current rule |
@@ -46,10 +46,23 @@ one software evaluation.
 | BT-05 | Post-traumatic seizure | NICE NG232 1.5.8 | Same conservative review flag; the software records supplied evidence only. |
 | BT-06 | Focal neurological deficit | NICE NG232 1.5.8 | Same conservative review flag; no autonomous treatment or disposition. |
 | BT-07 | More than one vomiting episode | NICE NG232 1.5.8 | Same conservative review flag; adult population and source scope remain required. |
+| BT-P01 | Suspected non-accidental injury under 16 | NICE NG232 1.5.10 | Flags the documented paediatric criterion for clinician review; no diagnosis or imaging order. |
+| BT-P02 | Post-traumatic seizure under 16 | NICE NG232 1.5.10 | Same conservative paediatric review flag. |
+| BT-P03 | GCS below 14, or baby under 1 with paediatric GCS below 15 at 2 hours | NICE NG232 1.5.10 | Same conservative paediatric review flag. |
+| BT-P04 | GCS below 15 under 16 | NICE NG232 1.5.10 | Same conservative paediatric review flag. |
+| BT-P05 | Suspected open/depressed skull fracture or tense fontanelle | NICE NG232 1.5.10 | Same conservative paediatric review flag; the software does not establish a fracture. |
+| BT-P06 | Sign of basal skull fracture under 16 | NICE NG232 1.5.10 | Same conservative paediatric review flag. |
+| BT-P07 | Focal neurological deficit under 16 | NICE NG232 1.5.10 | Same conservative paediatric review flag. |
+| BT-P08 | Bruise, swelling, or laceration over 5 cm on a baby's head | NICE NG232 1.5.10 | Same conservative paediatric review flag. |
+| BT-P09 | More than one risk factor from the under-16 list | NICE NG232 1.5.11 | Flags clinician review of the documented risk-factor combination; it does not count or infer risk factors. |
+| BT-P10 | One under-16 risk factor under observation | NICE NG232 1.5.12 | Flags clinician review of the observation pathway; it does not direct observation duration. |
 | CT-01 | Documented negative chest eFAST | NICE NG39 1.3.3 | Preserves the warning that a negative chest eFAST does not exclude pneumothorax. It does not diagnose pneumothorax. |
+| CT-02 | Specialist eFAST team immediately available and onward transfer not delayed | NICE NG39 1.3.2 | Flags review of the documented eFAST context; it does not order eFAST or delay transfer. |
 | AT-01 | Documented negative FAST | NICE NG39 1.5.30 | Preserves the warning that a negative FAST does not exclude intraperitoneal or retroperitoneal haemorrhage. It does not diagnose haemorrhage. |
+| AT-02 | Suspected haemorrhage with haemodynamic instability not responding to volume resuscitation | NICE NG39 1.5.29 | Flags review of the minimum imaging needed to direct intervention; it does not autonomously order or limit imaging. |
 | OT-01 | Suspected knee fracture in a person over 2 | NICE NG38 1.2.1 | Flags review of whether the Ottawa knee rules indicate an X-ray. It does not apply the Ottawa rules or order imaging. |
 | OT-02 | Documented reduction or cast, splint, or traction application | NICE NG38 1.5.7 | Flags review of neurovascular assessment before and after the intervention and documentation of findings. It does not perform or direct the examination. |
+| OT-03 | Suspected ankle fracture in a person over 5 | NICE NG38 1.2.2 | Flags review of whether the Ottawa ankle and foot rules indicate an X-ray. It does not apply the rules or order imaging. |
 
 The source directly supports the documented criterion or limitation in each
 row. The `suggested_department`, provisional priority, and checklist wording

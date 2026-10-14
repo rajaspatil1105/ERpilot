@@ -165,7 +165,7 @@ def test_modifier_combination_preserves_core_result_and_persistence(client, app)
     assert response.status_code == 201
     body = response.get_json()
     assert body["outcome"] == FULL_MATCH
-    assert len(body["inference_result"]["evaluations"]) == 7
+    assert len(body["inference_result"]["evaluations"]) == 17
     assert {
         item["modifier_id"]
         for item in body["modifier_result"]["fired_modifiers"]

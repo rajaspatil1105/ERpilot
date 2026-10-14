@@ -21,7 +21,10 @@ ALLOWED_SYMPTOM_CATEGORIES = ALLOWED_CATEGORIES | {
 }
 ALLOWED_PRIORITIES = {"RED", "ORANGE", "YELLOW", "GREEN"}
 NO_PRIORITY_OVERRIDE = "NONE"
-EXPECTED_BRAIN_RULE_IDS = {f"BT-{number:02d}" for number in range(1, 8)}
+EXPECTED_BRAIN_RULE_IDS = {
+    *(f"BT-{number:02d}" for number in range(1, 8)),
+    *(f"BT-P{number:02d}" for number in range(1, 11)),
+}
 PROTOCOL_URL = (
     "https://www.nice.org.uk/guidance/NG232/chapter/recommendations"
 )

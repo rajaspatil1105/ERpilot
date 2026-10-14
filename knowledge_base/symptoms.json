@@ -58,12 +58,108 @@
       "source_reference": "NICE NG232, recommendation 1.5.8"
     },
     {
+      "key": "paediatric_head_injury_suspected_non_accidental_injury",
+      "label": "Suspected non-accidental injury in a person under 16",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_post_traumatic_seizure",
+      "label": "Post-traumatic seizure in a person under 16",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_gcs_below_14_or_baby_gcs_below_15_at_2_hours",
+      "label": "GCS below 14, or baby under 1 with paediatric GCS below 15 at two hours",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_gcs_below_15",
+      "label": "GCS below 15 in a person under 16",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_suspected_open_or_depressed_skull_fracture_or_tense_fontanelle",
+      "label": "Suspected open or depressed skull fracture, or tense fontanelle",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_sign_of_basal_skull_fracture",
+      "label": "Sign of basal skull fracture in a person under 16",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_focal_neurological_deficit",
+      "label": "Focal neurological deficit in a person under 16",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_baby_head_bruise_swelling_laceration_over_5cm",
+      "label": "Head bruise, swelling, or laceration over 5 cm in a baby under 1",
+      "category": "brain_trauma",
+      "evidence_type": "derived_criterion",
+      "description": "Paediatric head-injury risk factor from NICE NG232 recommendation 1.5.10.",
+      "source_reference": "NICE NG232, recommendation 1.5.10"
+    },
+    {
+      "key": "paediatric_head_injury_more_than_one_risk_factor_from_1_5_11",
+      "label": "More than one paediatric head-injury risk factor from NICE NG232 recommendation 1.5.11",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "More than one documented risk factor from the paediatric head-injury list in NICE NG232 recommendation 1.5.11.",
+      "source_reference": "NICE NG232, recommendation 1.5.11"
+    },
+    {
+      "key": "paediatric_head_injury_single_risk_factor_under_observation",
+      "label": "One paediatric head-injury risk factor under observation",
+      "category": "brain_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "A single documented risk factor requiring consideration of the observation pathway in NICE NG232 recommendation 1.5.12.",
+      "source_reference": "NICE NG232, recommendation 1.5.12"
+    },
+    {
       "key": "chest_trauma_negative_chest_efast",
       "label": "Negative chest eFAST result",
       "category": "chest_trauma",
       "evidence_type": "documented_investigation_finding",
       "description": "A documented negative chest eFAST does not exclude pneumothorax.",
       "source_reference": "NICE NG39, recommendation 1.3.3"
+    },
+    {
+      "key": "chest_trauma_efast_specialist_team_immediately_available",
+      "label": "Specialist team equipped with ultrasound immediately available",
+      "category": "chest_trauma",
+      "evidence_type": "documented_service_context",
+      "description": "A documented service-context condition from NICE NG39 recommendation 1.3.2.",
+      "source_reference": "NICE NG39, recommendation 1.3.2"
+    },
+    {
+      "key": "chest_trauma_efast_onward_transfer_not_delayed",
+      "label": "Onward transfer would not be delayed by eFAST",
+      "category": "chest_trauma",
+      "evidence_type": "documented_service_context",
+      "description": "A documented service-context condition from NICE NG39 recommendation 1.3.2.",
+      "source_reference": "NICE NG39, recommendation 1.3.2"
     },
     {
       "key": "abdominal_trauma_negative_fast",
@@ -74,12 +170,28 @@
       "source_reference": "NICE NG39, recommendation 1.5.30"
     },
     {
+      "key": "abdominal_trauma_suspected_haemorrhage_with_unstable_nonresponsive_context",
+      "label": "Suspected haemorrhage with haemodynamic instability not responding to volume resuscitation",
+      "category": "abdominal_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "A documented NG39 context in which diagnostic imaging should be limited to what is needed to direct intervention.",
+      "source_reference": "NICE NG39, recommendation 1.5.29"
+    },
+    {
       "key": "orthopedic_trauma_suspected_knee_fracture_person_over_2",
       "label": "Suspected knee fracture in a person over 2",
       "category": "orthopedic_trauma",
       "evidence_type": "clinician_documented_finding",
       "description": "A documented suspected knee fracture in a person over 2, for review using the cited clinical decision rule.",
       "source_reference": "NICE NG38, recommendation 1.2.1"
+    },
+    {
+      "key": "orthopedic_trauma_suspected_ankle_fracture_person_over_5",
+      "label": "Suspected ankle fracture in a person over 5",
+      "category": "orthopedic_trauma",
+      "evidence_type": "clinician_documented_finding",
+      "description": "A documented suspected ankle fracture in a person over 5, for review using the cited clinical decision rule.",
+      "source_reference": "NICE NG38, recommendation 1.2.2"
     },
     {
       "key": "orthopedic_trauma_reduction_or_cast_splint_traction",

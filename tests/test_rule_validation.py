@@ -72,6 +72,19 @@ def _valid_rules():
             }
             for number in range(1, 8)
         ]
+        + [
+            {
+                "rule_id": f"BT-P{number:02d}",
+                "category": "brain_trauma",
+                "conditions": ["adult_head_injury_test_criterion"],
+                "conclusion": "adult_head_injury_urgent_clinician_review",
+                "priority_flag": "RED",
+                "suggested_department": "Emergency Department",
+                "checklist_action": "Flag the criterion for clinician review.",
+                "protocol_reference": PROTOCOL_REFERENCE,
+            }
+            for number in range(1, 11)
+        ]
     }
 
 
@@ -87,9 +100,10 @@ def _validate_fixture(symptoms=None, departments=None, rules=None):
 def test_valid_project_datasets_pass_validation():
     rules = validate_dataset_files(SYMPTOMS_PATH, DEPARTMENTS_PATH, RULES_PATH)
 
-    assert len(rules) == 7
+    assert len(rules) == 17
     assert {rule["rule_id"] for rule in rules} == {
-        f"BT-{number:02d}" for number in range(1, 8)
+        *{f"BT-{number:02d}" for number in range(1, 8)},
+        *{f"BT-P{number:02d}" for number in range(1, 11)},
     }
 
 
@@ -129,8 +143,49 @@ def test_orthopedic_rules_preserve_ng38_scope():
     ]
 
 
+def test_expanded_rules_preserve_source_specific_conditions():
+    brain_rules = validate_dataset_files(
+        SYMPTOMS_PATH,
+        DEPARTMENTS_PATH,
+        RULES_PATH,
+        expected_category="brain_trauma",
+    )
+    chest_rules = validate_dataset_files(
+        SYMPTOMS_PATH,
+        DEPARTMENTS_PATH,
+        STAGE_6_RULE_PATHS[0],
+        expected_category="chest_trauma",
+    )
+    abdominal_rules = validate_dataset_files(
+        SYMPTOMS_PATH,
+        DEPARTMENTS_PATH,
+        STAGE_6_RULE_PATHS[1],
+        expected_category="abdominal_trauma",
+    )
+    orthopedic_rules = validate_dataset_files(
+        SYMPTOMS_PATH,
+        DEPARTMENTS_PATH,
+        STAGE_6_RULE_PATHS[2],
+        expected_category="orthopedic_trauma",
+    )
+
+    assert len(brain_rules) == 17
+    assert all(
+        rule["conditions"][0].startswith("paediatric_")
+        for rule in brain_rules
+        if rule["rule_id"].startswith("BT-P")
+    )
+    assert {rule["rule_id"] for rule in chest_rules} == {"CT-01", "CT-02"}
+    assert {rule["rule_id"] for rule in abdominal_rules} == {"AT-01", "AT-02"}
+    assert {rule["rule_id"] for rule in orthopedic_rules} == {
+        "OT-01",
+        "OT-02",
+        "OT-03",
+    }
+
+
 def test_valid_in_memory_data_passes_validation():
-    assert len(_validate_fixture()) == 7
+    assert len(_validate_fixture()) == 17
 
 
 def test_duplicate_symptom_keys_are_rejected():
@@ -219,7 +274,10 @@ def test_all_expected_rules_are_present_exactly_once():
     validated = _validate_fixture(rules=rules)
 
     rule_ids = [rule["rule_id"] for rule in validated]
-    assert rule_ids == [f"BT-{number:02d}" for number in range(1, 8)]
+    assert rule_ids == [
+        *[f"BT-{number:02d}" for number in range(1, 8)],
+        *[f"BT-P{number:02d}" for number in range(1, 11)],
+    ]
 
 
 def test_valid_json_file_is_loadable(tmp_path):

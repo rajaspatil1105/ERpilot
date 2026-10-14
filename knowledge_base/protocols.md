@@ -60,6 +60,15 @@ representations of the cited recommendation, not diagnoses or autonomous
 treatment instructions. They require review by a qualified clinician before
 any real-world use.
 
+NICE recommendation 1.5.10 provides a separate under-16 pathway. ERPilot
+represents its documented risk factors with BT-P01 through BT-P08, while
+BT-P09 represents the documented presence of more than one risk factor from
+recommendation 1.5.11 and BT-P10 represents the single-risk-factor observation
+context in recommendation 1.5.12. These rules are keyed to paediatric
+evidence names and do not cross-match the adult BT-01 through BT-07 criteria.
+They flag clinician review only; they do not diagnose, order CT, or direct
+observation.
+
 Recommendation 1.4.2 states that a depressed conscious level should only be
 attributed to intoxication after an important traumatic brain injury has been
 excluded. This remains a future research item for a separate intoxication
@@ -244,6 +253,11 @@ core software priority.
 
 ### Chest trauma
 
+- NICE NG39 recommendation 1.3.2 says to consider eFAST to augment clinical
+  assessment only when a specialist team equipped with ultrasound is
+  immediately available and onward transfer will not be delayed. CT-02
+  represents those two documented service-context conditions and flags review
+  only. It does not order eFAST or delay transfer.
 - NICE, *Major trauma: assessment and initial management* (NG39),
   recommendation 1.3.3:
   <https://www.nice.org.uk/guidance/ng39/chapter/Recommendations>
@@ -253,6 +267,11 @@ core software priority.
 
 ### Abdominal trauma
 
+- NICE NG39 recommendation 1.5.29 says to limit diagnostic imaging, including
+  FAST, to the minimum needed to direct intervention in suspected haemorrhage
+  with haemodynamic instability that is not responding to volume
+  resuscitation. AT-02 records that documented context for clinician review
+  only. It does not order or limit imaging autonomously.
 - NICE, *Major trauma: assessment and initial management* (NG39),
   recommendation 1.5.30:
   <https://www.nice.org.uk/guidance/ng39/chapter/Recommendations>
@@ -263,6 +282,10 @@ core software priority.
 
 ### Orthopedic trauma
 
+- NICE NG38 recommendation 1.2.2 supports use of the Ottawa ankle and foot
+  rules for people over 5 with suspected ankle fractures. OT-03 flags review
+  of that decision-rule context; ERPilot does not apply the rules or order an
+  X-ray.
 - NICE, *Fractures (non-complex): assessment and management* (NG38),
   recommendation 1.2.1:
   <https://www.nice.org.uk/guidance/ng38/chapter/Recommendations>

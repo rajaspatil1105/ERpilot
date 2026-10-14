@@ -11,6 +11,18 @@
       "suggested_department": "Emergency Department",
       "checklist_action": "Flag the negative FAST for clinician review; it does not exclude intraperitoneal or retroperitoneal haemorrhage.",
       "protocol_reference": "NICE NG39, recommendation 1.5.30: https://www.nice.org.uk/guidance/ng39/chapter/Recommendations"
+    },
+    {
+      "rule_id": "AT-02",
+      "category": "abdominal_trauma",
+      "conditions": [
+        "abdominal_trauma_suspected_haemorrhage_with_unstable_nonresponsive_context"
+      ],
+      "conclusion": "abdominal_trauma_limited_imaging_context_requires_review",
+      "priority_flag": "ORANGE",
+      "suggested_department": "Emergency Department",
+      "checklist_action": "Flag the documented haemorrhage context for clinician review of the minimum imaging needed to direct intervention; do not order or limit imaging autonomously.",
+      "protocol_reference": "NICE NG39, recommendation 1.5.29: https://www.nice.org.uk/guidance/ng39/chapter/Recommendations"
     }
   ]
 }
