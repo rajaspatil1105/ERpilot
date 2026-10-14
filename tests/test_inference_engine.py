@@ -1,4 +1,6 @@
 from copy import deepcopy
+import json
+from pathlib import Path
 
 import pytest
 
@@ -240,3 +242,63 @@ def test_explanations_distinguish_full_partial_and_no_match():
     assert "explicitly recorded as absent" in no_match_text
     assert "does not prove a diagnosis" in full_text
     assert "Test protocol reference" in full_text
+
+
+@pytest.mark.parametrize(
+    "rules_path",
+    sorted((Path(__file__).resolve().parents[1] / "rule_base" / "core").glob("*_rules.json")),
+    ids=lambda path: path.stem,
+)
+def test_every_configured_rule_has_derived_positive_negative_and_partial_cases(rules_path):
+    """Exercise each actual rule from its configured condition list."""
+    rules = json.loads(rules_path.read_text(encoding="utf-8"))["rules"]
+
+    for rule in rules:
+        conditions = rule["conditions"]
+        positive = {condition: PRESENT for condition in conditions}
+        full = match_rule(rule, positive)
+        assert full["match_status"] == FULL_MATCH, rule["rule_id"]
+        assert full["rule_id"] == rule["rule_id"]
+        assert full["conclusion"] == rule["conclusion"]
+        assert rule["protocol_reference"] in explain_match(full, rule)
+
+        negative = {condition: ABSENT for condition in conditions}
+        no_match = match_rule(rule, negative)
+        assert no_match["match_status"] == NO_MATCH, rule["rule_id"]
+        assert no_match["absent_conditions"] == conditions
+
+        if len(conditions) > 1:
+            partial_evidence = {
+                conditions[0]: PRESENT,
+            }
+            partial = match_rule(rule, partial_evidence)
+            assert partial["match_status"] == PARTIAL_MATCH, rule["rule_id"]
+            assert partial["unknown_conditions"] == conditions[1:]
+            assert partial["missing_conditions"] == conditions[1:]
+            assert "PARTIAL_MATCH" in explain_match(partial, rule)
+
+
+def test_unknown_does_not_silently_become_absence_in_configured_multicondition_rule():
+    rule = next(
+        rule
+        for path in (Path(__file__).resolve().parents[1] / "rule_base" / "core").glob("*_rules.json")
+        for rule in json.loads(path.read_text(encoding="utf-8"))["rules"]
+        if len(rule["conditions"]) > 1
+    )
+    evidence = {rule["conditions"][0]: PRESENT}
+    missing = match_rule(rule, evidence)
+    explicit_unknown = match_rule(
+        rule,
+        {**evidence, rule["conditions"][1]: UNKNOWN},
+    )
+    explicit_absent = match_rule(
+        rule,
+        {**evidence, rule["conditions"][1]: ABSENT},
+    )
+
+    assert missing["match_status"] == explicit_unknown["match_status"] == PARTIAL_MATCH
+    assert missing["missing_conditions"] == [rule["conditions"][1]]
+    assert explicit_unknown["unknown_conditions"] == [rule["conditions"][1]]
+    assert explicit_unknown["missing_conditions"] == []
+    assert explicit_absent["match_status"] == NO_MATCH
+    assert explicit_absent["absent_conditions"] == [rule["conditions"][1]]

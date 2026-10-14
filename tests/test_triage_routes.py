@@ -523,6 +523,87 @@ def test_follow_up_answer_rejects_invalid_or_stale_questions(client):
     assert stale.status_code == 409
 
 
+def test_follow_up_response_is_idempotent_and_does_not_duplicate_evidence(client, app):
+    patient_id, initial = _create_partial_chest_assessment(client)
+    endpoint = (
+        f"/api/patients/{patient_id}/assessments/"
+        f"{initial['assessment_id']}/questions/Q-CT-EFAST-TRANSFER"
+    )
+    first = client.post(endpoint, json={"response": "YES"})
+    repeated = client.post(endpoint, json={"response": "YES"})
+
+    assert first.status_code == 200
+    assert repeated.status_code == 409
+    with app.app_context():
+        assessment = db.session.get(Assessment, initial["assessment_id"])
+        evidence = json.loads(assessment.evidence_json)
+        assert evidence == {
+            "chest_trauma_efast_specialist_team_immediately_available": "PRESENT",
+            "chest_trauma_efast_onward_transfer_not_delayed": "PRESENT",
+        }
+
+
+def test_follow_up_request_for_missing_assessment_returns_not_found(client):
+    patient_id = register_patient(client)
+    response = client.post(
+        f"/api/patients/{patient_id}/assessments/99999/questions/Q-CT-EFAST-TRANSFER",
+        json={"response": "YES"},
+    )
+
+    assert response.status_code == 404
+    assert response.get_json()["field"] == "assessment_id"
+
+
+def test_unrelated_canonical_evidence_does_not_activate_a_rule(client):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {"chest_trauma_negative_chest_efast": "PRESENT"},
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["outcome"] == "NO_MATCH"
+    assert all(
+        "chest_trauma_negative_chest_efast" in item["unmatched_evidence_keys"]
+        for item in body["inference_result"]["evaluations"]
+    )
+
+
+def test_no_match_api_response_contains_no_fabricated_conclusion(client, app):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {
+                "adult_head_injury_post_traumatic_seizure": "ABSENT",
+            },
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["outcome"] == "NO_MATCH"
+    assert body["inference_result"]["full_matches"] == []
+    assert body["inference_result"]["partial_matches"] == []
+    assert body["inference_result"]["follow_up_questions"] == []
+    assert all(
+        item["match_status"] == "NO_MATCH"
+        and item["conclusion"]
+        and item["rule_id"]
+        for item in body["inference_result"]["no_matches"]
+    )
+    with app.app_context():
+        persisted = db.session.get(Assessment, body["assessment_id"])
+        assert json.loads(persisted.inference_result_json)["outcome"] == body["outcome"]
+
+
 def test_follow_up_answer_enforces_assessment_patient_ownership(client):
     owner_id, initial = _create_partial_chest_assessment(client)
     other_patient_id = register_patient(client)
