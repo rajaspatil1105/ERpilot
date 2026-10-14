@@ -13,6 +13,7 @@ from flask import Blueprint, current_app, jsonify, request, send_file
 from inference_engine.explainer import explain_match
 from inference_engine.forward_chaining import run_forward_chaining
 from inference_engine.modifier_matcher import run_modifier_evaluation
+from inference_engine.question_workflow import run_question_workflow
 from inference_engine.rule_matcher import (
     EVIDENCE_STATES,
     FULL_MATCH,
@@ -27,6 +28,7 @@ from inference_engine.rule_validator import (
     validate_core_rules,
     validate_departments,
     validate_modifier_files,
+    validate_questions,
     validate_symptoms,
     SPECIAL_CONDITION_CATEGORY,
 )
@@ -45,6 +47,7 @@ triage_bp = Blueprint("triage", __name__, url_prefix="/api")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SYMPTOMS_PATH = PROJECT_ROOT / "knowledge_base" / "symptoms.json"
+QUESTIONS_PATH = PROJECT_ROOT / "knowledge_base" / "questions.json"
 DEPARTMENTS_PATH = PROJECT_ROOT / "knowledge_base" / "departments.json"
 RULES_PATHS = {
     "brain_trauma": PROJECT_ROOT / "rule_base" / "core" / "brain_trauma_rules.json",
@@ -207,7 +210,13 @@ def create_triage_assessment():
         vitals = _validate_vitals(payload.get("vitals", {}))
         rules = _load_rules(category)
         modifiers = _load_modifiers()
-        inference_result = _evaluate_rules(rules, evidence)
+        questions = _load_questions()
+        inference_result = _evaluate_rules(
+            rules,
+            evidence,
+            category,
+            questions,
+        )
         modifier_result = _evaluate_modifiers(
             modifiers,
             category,
@@ -243,20 +252,153 @@ def create_triage_assessment():
         current_app.logger.exception("Unable to persist triage assessment")
         return _error("Unable to persist triage assessment.", 500)
 
-    return (
-        jsonify(
-            assessment_id=assessment.id,
-            patient_id=assessment.patient_id,
-            category=assessment.category,
-            evidence=evidence,
-            modifier_evidence=modifier_evidence,
-            vitals=vitals,
-            inference_result=inference_result,
-            modifier_result=modifier_result,
-            outcome=inference_result["outcome"],
-            disclaimer=_disclaimer(),
-        ),
+    return _assessment_response(
+        assessment,
+        evidence,
+        modifier_evidence,
+        vitals,
+        inference_result,
         201,
+    )
+
+
+@triage_bp.post(
+    "/patients/<int:patient_id>/assessments/<int:assessment_id>/"
+    "questions/<question_id>"
+)
+def answer_assessment_question(patient_id: int, assessment_id: int, question_id: str):
+    """Record one metadata-backed answer and reevaluate the assessment."""
+
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or assessment.patient_id != patient_id:
+        return _error("Assessment was not found.", 404, "assessment_id")
+
+    try:
+        payload = _request_object()
+        questions = _load_questions()
+        question = next(
+            (item for item in questions if item["question_id"] == question_id),
+            None,
+        )
+        if question is None:
+            raise RequestValidationError(
+                f"Unknown question ID: {question_id}.",
+                "question_id",
+            )
+        if assessment.category not in question["applicable_categories"]:
+            raise RequestValidationError(
+                "The question does not apply to this assessment category.",
+                "question_id",
+            )
+
+        evidence = _load_persisted_object(
+            assessment.evidence_json,
+            "assessment evidence",
+        )
+        inference_result = _load_persisted_object(
+            assessment.inference_result_json,
+            "assessment inference result",
+        )
+        symptom_categories = _load_symptom_categories()
+        evidence = _validate_evidence(
+            evidence,
+            symptom_categories,
+            {assessment.category},
+            "evidence",
+        )
+        modifier_data = inference_result.get("modifiers", {})
+        if not isinstance(modifier_data, dict):
+            raise RuleDataError("Persisted modifier result is not an object.")
+        modifier_evidence = _validate_evidence(
+            modifier_data.get("submitted_evidence", {}),
+            symptom_categories,
+            {SPECIAL_CONDITION_CATEGORY},
+            "modifier_evidence",
+        )
+        rules = _load_rules(assessment.category)
+        if question["evidence_key"] not in {
+            condition
+            for rule in rules
+            if rule["rule_id"] in question["rule_ids"]
+            for condition in rule["conditions"]
+        }:
+            raise RequestValidationError(
+                "The question does not belong to this assessment.",
+                "question_id",
+            )
+
+        current_result = _evaluate_rules(
+            rules,
+            evidence,
+            assessment.category,
+            questions,
+        )
+        active_question_ids = {
+            item["question_id"]
+            for item in current_result["follow_up_questions"]
+        }
+        if question_id not in active_question_ids:
+            return _error(
+                "This question is no longer relevant to the current evidence.",
+                409,
+                "question_id",
+            )
+
+        state = _question_response_state(payload, question)
+        evidence[question["evidence_key"]] = state
+        inference_result = _evaluate_rules(
+            rules,
+            evidence,
+            assessment.category,
+            questions,
+        )
+        modifiers = _load_modifiers()
+        modifier_result = _evaluate_modifiers(
+            modifiers,
+            assessment.category,
+            modifier_evidence,
+        )
+        inference_result["modifiers"] = modifier_result
+        vitals = _load_persisted_object(
+            assessment.vitals_json,
+            "assessment vitals",
+        )
+        vitals = _validate_vitals(vitals)
+    except RequestValidationError as error:
+        return _error(error.message, 400, error.field)
+    except (ValidationError, InferenceValidationError, RuleDataError) as error:
+        current_app.logger.error(
+            "Assessment question evaluation failed: %s",
+            error,
+        )
+        return _error("Assessment question could not be processed.", 500)
+    except Exception:
+        current_app.logger.exception(
+            "Unexpected assessment question evaluation failure"
+        )
+        return _error("Assessment question could not be processed.", 500)
+
+    assessment.evidence_json = json.dumps(evidence, allow_nan=False)
+    assessment.inference_result_json = json.dumps(
+        inference_result,
+        allow_nan=False,
+    )
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception(
+            "Unable to persist assessment question response"
+        )
+        return _error("Assessment question could not be saved.", 500)
+
+    return _assessment_response(
+        assessment,
+        evidence,
+        modifier_evidence,
+        vitals,
+        inference_result,
+        200,
     )
 
 
@@ -336,6 +478,25 @@ def _load_symptom_categories() -> dict[str, str]:
         symptom["key"]: symptom["category"]
         for symptom in data["symptoms"]
     }
+
+
+def _load_questions() -> list[dict[str, Any]]:
+    symptom_data = load_json_file(SYMPTOMS_PATH)
+    symptom_keys = validate_symptoms(symptom_data, SYMPTOMS_PATH)
+    rule_catalog: dict[str, str] = {}
+    for category in SUPPORTED_RULE_CATEGORIES:
+        for rule in _load_rules(category):
+            rule_catalog[rule["rule_id"]] = category
+    question_data = load_json_file(QUESTIONS_PATH)
+    try:
+        return validate_questions(
+            question_data,
+            symptom_keys,
+            rule_catalog,
+            source=QUESTIONS_PATH,
+        )
+    except ValidationError as error:
+        raise RuleDataError(str(error)) from error
 
 
 def _load_rules(category: str = "brain_trauma") -> list[dict[str, Any]]:
@@ -426,8 +587,18 @@ def _validate_vitals(value: Any) -> dict[str, int | float]:
 def _evaluate_rules(
     rules: list[dict[str, Any]],
     evidence: dict[str, str],
+    category: str,
+    questions: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    result = run_forward_chaining(rules, evidence)
+    forward_result = run_forward_chaining(rules, evidence)
+    workflow = run_question_workflow(
+        rules,
+        evidence,
+        questions,
+        category,
+        forward_result=forward_result,
+    )
+    result = workflow["forward_result"]
     rules_by_id = {}
     for rule in rules:
         if not isinstance(rule, dict) or "rule_id" not in rule:
@@ -460,7 +631,77 @@ def _evaluate_rules(
         **result,
         "outcome": outcome,
         "explanations": explanations,
+        "backward_chaining": workflow["backward_chaining"],
+        "follow_up_questions": workflow["follow_up_questions"],
     }
+
+
+def _question_response_state(
+    payload: dict[str, Any],
+    question: dict[str, Any],
+) -> str:
+    unexpected_fields = set(payload) - {"response", "state"}
+    if unexpected_fields:
+        raise RequestValidationError(
+            "Only response or state may be submitted.",
+            next(iter(unexpected_fields)),
+        )
+    if "response" in payload and "state" in payload:
+        raise RequestValidationError(
+            "Submit either response or state, not both.",
+            "response",
+        )
+    if "response" in payload:
+        response = payload["response"]
+        mapping = question["response_mapping"]
+        if not isinstance(response, str) or response not in mapping:
+            raise RequestValidationError(
+                "response must be one of YES, NO, or UNKNOWN.",
+                "response",
+            )
+        return mapping[response]
+    state = payload.get("state")
+    if state not in EVIDENCE_STATES:
+        raise RequestValidationError(
+            "state must be PRESENT, ABSENT, or UNKNOWN.",
+            "state",
+        )
+    return state
+
+
+def _load_persisted_object(value: str, label: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise RuleDataError(f"{label} is malformed.") from error
+    if not isinstance(parsed, dict):
+        raise RuleDataError(f"{label} must be a JSON object.")
+    return parsed
+
+
+def _assessment_response(
+    assessment: Assessment,
+    evidence: dict[str, str],
+    modifier_evidence: dict[str, str],
+    vitals: dict[str, int | float],
+    inference_result: dict[str, Any],
+    status: int,
+):
+    return (
+        jsonify(
+            assessment_id=assessment.id,
+            patient_id=assessment.patient_id,
+            category=assessment.category,
+            evidence=evidence,
+            modifier_evidence=modifier_evidence,
+            vitals=vitals,
+            inference_result=inference_result,
+            modifier_result=inference_result["modifiers"],
+            outcome=inference_result["outcome"],
+            disclaimer=_disclaimer(),
+        ),
+        status,
+    )
 
 
 def _evaluate_modifiers(

@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "questions": [
+    {
+      "question_id": "Q-CT-EFAST-TEAM",
+      "evidence_key": "chest_trauma_efast_specialist_team_immediately_available",
+      "prompt": "Was a specialist team equipped with ultrasound immediately available?",
+      "response_mapping": {
+        "YES": "PRESENT",
+        "NO": "ABSENT",
+        "UNKNOWN": "UNKNOWN"
+      },
+      "applicable_categories": [
+        "chest_trauma"
+      ],
+      "rule_ids": [
+        "CT-02"
+      ]
+    },
+    {
+      "question_id": "Q-CT-EFAST-TRANSFER",
+      "evidence_key": "chest_trauma_efast_onward_transfer_not_delayed",
+      "prompt": "Would using eFAST leave onward transfer without delay?",
+      "response_mapping": {
+        "YES": "PRESENT",
+        "NO": "ABSENT",
+        "UNKNOWN": "UNKNOWN"
+      },
+      "applicable_categories": [
+        "chest_trauma"
+      ],
+      "rule_ids": [
+        "CT-02"
+      ]
+    }
+  ]
+}

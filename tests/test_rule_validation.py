@@ -11,6 +11,7 @@ from inference_engine.rule_validator import (
     validate_dataset_files,
     validate_departments,
     validate_symptoms,
+    validate_questions,
 )
 
 
@@ -104,6 +105,30 @@ def test_valid_project_datasets_pass_validation():
     assert {rule["rule_id"] for rule in rules} == {
         *{f"BT-{number:02d}" for number in range(1, 8)},
         *{f"BT-P{number:02d}" for number in range(1, 11)},
+    }
+
+
+def test_question_metadata_is_valid_and_links_to_real_rules():
+    symptoms = load_json_file(SYMPTOMS_PATH)
+    rules_by_id = {}
+    for rules_path in (RULES_PATH, *STAGE_6_RULE_PATHS):
+        for rule in validate_dataset_files(
+            SYMPTOMS_PATH,
+            DEPARTMENTS_PATH,
+            rules_path,
+        ):
+            rules_by_id[rule["rule_id"]] = rule["category"]
+
+    questions = load_json_file(ROOT / "knowledge_base" / "questions.json")
+    validated = validate_questions(
+        questions,
+        validate_symptoms(symptoms),
+        rules_by_id,
+    )
+
+    assert {question["question_id"] for question in validated} == {
+        "Q-CT-EFAST-TEAM",
+        "Q-CT-EFAST-TRANSFER",
     }
 
 

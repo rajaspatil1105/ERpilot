@@ -156,3 +156,21 @@ A protocol reference must identify:
 The existence of a protocol reference does not by itself make a rule
 clinically valid. Future rule datasets require source verification and
 qualified clinical review.
+
+## 7. Follow-up question metadata
+
+`knowledge_base/questions.json` is the source of truth for backward-chaining
+follow-up prompts. Each question contains:
+
+- a stable `question_id`
+- one canonical `evidence_key`
+- neutral clinician-facing `prompt` text
+- a `response_mapping` from `YES`, `NO`, and `UNKNOWN` to the canonical
+  `PRESENT`, `ABSENT`, and `UNKNOWN` evidence states
+- applicable core trauma categories
+- the rule IDs that require the evidence
+
+The application selects a question only when a linked rule is a relevant
+`PARTIAL_MATCH` with that evidence still unknown. A question answer updates
+the existing assessment evidence and causes the rules and modifiers to be
+evaluated again. It cannot be used to submit an arbitrary evidence key.

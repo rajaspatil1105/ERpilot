@@ -33,10 +33,10 @@
     </div>
 
     <div class="alert alert-secondary mb-4">
-        <strong>Backward-chaining limitation:</strong>
-        The current API exposes forward evaluation only. Unresolved supported
-        conditions are shown below as unknown information; this page does not
-        invent follow-up questions or run a second inference engine.
+        <strong>Backward-chaining follow-up workflow:</strong>
+        Questions below are selected from unresolved conditions in applicable
+        rule candidates. They are software prompts for reviewing recorded
+        evidence, not diagnoses or treatment instructions.
     </div>
 
     <section class="mb-4">
@@ -48,6 +48,15 @@
         <h2 class="h3">Rules without a match</h2>
         <p id="no-match-message" class="text-muted"></p>
         <div id="unmatched-rules" class="row g-3"></div>
+    </section>
+
+    <section class="mb-4" aria-labelledby="follow-up-heading">
+        <h2 id="follow-up-heading" class="h3">Relevant follow-up questions</h2>
+        <p class="text-muted">
+            Answer only from information available to the clinician. Select
+            Unknown when the evidence is unresolved.
+        </p>
+        <div id="follow-up-questions" class="row g-3"></div>
     </section>
 
     <section class="mb-4">
@@ -83,4 +92,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/results.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/questions.js') }}" defer></script>
 {% endblock %}

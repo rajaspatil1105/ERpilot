@@ -77,6 +77,12 @@ def explain_match(
     )
     if protocol_reference:
         parts.append(f"Protocol reference: {protocol_reference}.")
+    question_ids = match_result.get("follow_up_question_ids", [])
+    if question_ids:
+        parts.append(
+            "Relevant follow-up question IDs: "
+            f"{_format_conditions(question_ids)}."
+        )
     parts.append(
         "This explanation reflects recorded evidence only and does not prove "
         "a diagnosis or guarantee a clinical outcome."

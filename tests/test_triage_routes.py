@@ -398,6 +398,179 @@ def test_expanded_multicondition_rule_preserves_unknown_evidence(client):
     }
 
 
+def _create_partial_chest_assessment(client):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "chest_trauma",
+            "evidence": {
+                "chest_trauma_efast_specialist_team_immediately_available":
+                    "PRESENT",
+            },
+        },
+    )
+    assert response.status_code == 201
+    return patient_id, response.get_json()
+
+
+def test_follow_up_questions_are_selected_from_partial_rules(client):
+    _patient_id, body = _create_partial_chest_assessment(client)
+
+    questions = body["inference_result"]["follow_up_questions"]
+    assert [question["question_id"] for question in questions] == [
+        "Q-CT-EFAST-TRANSFER"
+    ]
+    assert questions[0]["required_by_rule_ids"] == ["CT-02"]
+    ct02 = next(
+        item
+        for item in body["inference_result"]["evaluations"]
+        if item["rule_id"] == "CT-02"
+    )
+    assert ct02["follow_up_question_ids"] == ["Q-CT-EFAST-TRANSFER"]
+    explanation = next(
+        item
+        for item in body["inference_result"]["explanations"]
+        if item["rule_id"] == "CT-02"
+    )
+    assert "Q-CT-EFAST-TRANSFER" in explanation["text"]
+
+
+@pytest.mark.parametrize(
+    ("response_token", "expected_status", "expected_question_count"),
+    [
+        ("YES", "FULL_MATCH", 0),
+        ("NO", "NO_MATCH", 0),
+        ("UNKNOWN", "PARTIAL_MATCH", 1),
+    ],
+)
+def test_follow_up_answer_reevaluates_and_persists(
+    client,
+    app,
+    response_token,
+    expected_status,
+    expected_question_count,
+):
+    patient_id, initial = _create_partial_chest_assessment(client)
+    answer = client.post(
+        f"/api/patients/{patient_id}/assessments/"
+        f"{initial['assessment_id']}/questions/Q-CT-EFAST-TRANSFER",
+        json={"response": response_token},
+    )
+
+    assert answer.status_code == 200
+    body = answer.get_json()
+    ct02 = next(
+        item
+        for item in body["inference_result"]["evaluations"]
+        if item["rule_id"] == "CT-02"
+    )
+    assert ct02["match_status"] == expected_status
+    assert len(body["inference_result"]["follow_up_questions"]) == (
+        expected_question_count
+    )
+    assert body["evidence"][
+        "chest_trauma_efast_onward_transfer_not_delayed"
+    ] == {
+        "YES": "PRESENT",
+        "NO": "ABSENT",
+        "UNKNOWN": "UNKNOWN",
+    }[response_token]
+
+    with app.app_context():
+        assessment = db.session.get(Assessment, initial["assessment_id"])
+        assert json.loads(assessment.evidence_json) == body["evidence"]
+        persisted = json.loads(assessment.inference_result_json)
+        assert persisted["evaluations"]
+        assert persisted["outcome"] == body["outcome"]
+
+
+def test_follow_up_answer_rejects_invalid_or_stale_questions(client):
+    patient_id, initial = _create_partial_chest_assessment(client)
+    base_url = (
+        f"/api/patients/{patient_id}/assessments/{initial['assessment_id']}"
+    )
+
+    unknown = client.post(
+        f"{base_url}/questions/Q-NOT-REAL",
+        json={"response": "YES"},
+    )
+    invalid_response = client.post(
+        f"{base_url}/questions/Q-CT-EFAST-TRANSFER",
+        json={"response": "MAYBE"},
+    )
+    unrelated_evidence = client.post(
+        f"{base_url}/questions/Q-CT-EFAST-TRANSFER",
+        json={
+            "response": "YES",
+            "evidence_key": "adult_head_injury_post_traumatic_seizure",
+        },
+    )
+    assert unknown.status_code == 400
+    assert invalid_response.status_code == 400
+    assert unrelated_evidence.status_code == 400
+
+    answered = client.post(
+        f"{base_url}/questions/Q-CT-EFAST-TRANSFER",
+        json={"state": "PRESENT"},
+    )
+    stale = client.post(
+        f"{base_url}/questions/Q-CT-EFAST-TRANSFER",
+        json={"response": "YES"},
+    )
+    assert answered.status_code == 200
+    assert stale.status_code == 409
+
+
+def test_follow_up_answer_enforces_assessment_patient_ownership(client):
+    owner_id, initial = _create_partial_chest_assessment(client)
+    other_patient_id = register_patient(client)
+
+    response = client.post(
+        f"/api/patients/{other_patient_id}/assessments/"
+        f"{initial['assessment_id']}/questions/Q-CT-EFAST-TRANSFER",
+        json={"response": "YES"},
+    )
+
+    assert response.status_code == 404
+    assert response.get_json()["field"] == "assessment_id"
+    assert owner_id != other_patient_id
+
+
+def test_follow_up_answer_preserves_modifier_results(client):
+    patient_id = register_patient(client)
+    initial = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "chest_trauma",
+            "evidence": {
+                "chest_trauma_efast_specialist_team_immediately_available":
+                    "PRESENT",
+            },
+            "modifier_evidence": {
+                "pregnancy_status_documented_pregnant": "PRESENT",
+                "anesthesia_allergy_documented": "PRESENT",
+            },
+        },
+    )
+    assert initial.status_code == 201
+    initial_body = initial.get_json()
+
+    answer = client.post(
+        f"/api/patients/{patient_id}/assessments/"
+        f"{initial_body['assessment_id']}/questions/Q-CT-EFAST-TRANSFER",
+        json={"response": "YES"},
+    )
+
+    assert answer.status_code == 200
+    assert {
+        item["modifier_id"]
+        for item in answer.get_json()["modifier_result"]["fired_modifiers"]
+    } == {"PREG-01", "ALG-01"}
+
+
 @pytest.mark.parametrize(
     "evidence",
     [

@@ -127,7 +127,7 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     script = client.get("/static/js/results.js").get_data(as_text=True)
 
     assert "Applicable rule evaluations" in page
-    assert "Backward-chaining limitation" in page
+    assert "Backward-chaining follow-up workflow" in page
     for field in (
         "assessment_id",
         "patient_id",
@@ -145,6 +145,9 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     assert 'id="report-downloads"' in page
     assert "Provisional RED software-display priority" in script
     assert "/report/${format}" in script
+    questions_script = client.get("/static/js/questions.js").get_data(as_text=True)
+    assert "follow_up_questions" in questions_script
+    assert "/questions/${encodeURIComponent(question.question_id)}" in questions_script
 
 
 def test_existing_patient_and_triage_api_endpoints_remain_available(client):

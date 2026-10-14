@@ -57,6 +57,14 @@ RULE_FIELDS = {
     "checklist_action",
     "protocol_reference",
 }
+QUESTION_FIELDS = {
+    "question_id",
+    "evidence_key",
+    "prompt",
+    "response_mapping",
+    "applicable_categories",
+    "rule_ids",
+}
 MODIFIER_FIELDS = {
     "modifier_id",
     "trigger",
@@ -118,6 +126,97 @@ def validate_symptoms(data: Any, source: str | Path = "symptoms.json") -> set[st
             )
 
     return symptom_keys
+
+
+def validate_questions(
+    data: Any,
+    symptom_keys: set[str],
+    rule_catalog: Mapping[str, str] | None = None,
+    source: str | Path = "questions.json",
+) -> list[dict[str, Any]]:
+    """Validate explicit follow-up question metadata."""
+
+    source_name = str(source)
+    _require_mapping(data, source_name)
+    _require_exact_fields(data, {"version", "questions"}, source_name)
+    _require_non_empty_string(data["version"], f"{source_name}.version")
+    questions = data["questions"]
+    if not isinstance(questions, list):
+        raise ValidationError(f"{source_name}.questions: expected a list")
+
+    question_ids: set[str] = set()
+    validated: list[dict[str, Any]] = []
+    for index, question in enumerate(questions):
+        location = f"{source_name}.questions[{index}]"
+        _require_mapping(question, location)
+        _require_exact_fields(question, QUESTION_FIELDS, location)
+        for field in ("question_id", "evidence_key", "prompt"):
+            _require_non_empty_string(question[field], f"{location}.{field}")
+
+        question_id = question["question_id"]
+        if question_id in question_ids:
+            raise ValidationError(
+                f"{location}.question_id: duplicate question ID {question_id!r}"
+            )
+        question_ids.add(question_id)
+
+        evidence_key = question["evidence_key"]
+        if evidence_key not in symptom_keys:
+            raise ValidationError(
+                f"{location}.evidence_key: unknown symptom key "
+                f"{evidence_key!r}"
+            )
+        if question["response_mapping"] != {
+            "YES": "PRESENT",
+            "NO": "ABSENT",
+            "UNKNOWN": "UNKNOWN",
+        }:
+            raise ValidationError(
+                f"{location}.response_mapping: expected YES/NO/UNKNOWN "
+                "mapping to PRESENT/ABSENT/UNKNOWN"
+            )
+
+        categories = question["applicable_categories"]
+        if (
+            not isinstance(categories, list)
+            or not categories
+            or not all(
+                isinstance(category, str)
+                and category in ALLOWED_CATEGORIES
+                for category in categories
+            )
+            or len(set(categories)) != len(categories)
+        ):
+            raise ValidationError(
+                f"{location}.applicable_categories: expected unique "
+                "canonical trauma categories"
+            )
+
+        rule_ids = question["rule_ids"]
+        if (
+            not isinstance(rule_ids, list)
+            or not rule_ids
+            or not all(isinstance(rule_id, str) and rule_id for rule_id in rule_ids)
+            or len(set(rule_ids)) != len(rule_ids)
+        ):
+            raise ValidationError(
+                f"{location}.rule_ids: expected unique non-empty rule IDs"
+            )
+        if rule_catalog is not None:
+            for rule_id in rule_ids:
+                if rule_id not in rule_catalog:
+                    raise ValidationError(
+                        f"{location}.rule_ids: unknown rule ID {rule_id!r}"
+                    )
+                if rule_catalog[rule_id] not in categories:
+                    raise ValidationError(
+                        f"{location}.rule_ids: rule {rule_id!r} is not "
+                        "applicable to the listed categories"
+                    )
+
+        validated.append(question)
+
+    return validated
 
 
 def validate_departments(
