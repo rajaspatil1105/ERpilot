@@ -477,6 +477,19 @@ def test_follow_up_answer_reevaluates_and_persists(
         "NO": "ABSENT",
         "UNKNOWN": "UNKNOWN",
     }[response_token]
+    assert body["inference_result"]["answered_follow_up_questions"] == [
+        {
+            "question_id": "Q-CT-EFAST-TRANSFER",
+            "prompt": "Would using eFAST leave onward transfer without delay?",
+            "evidence_key": "chest_trauma_efast_onward_transfer_not_delayed",
+            "response": response_token,
+            "recorded_state": {
+                "YES": "PRESENT",
+                "NO": "ABSENT",
+                "UNKNOWN": "UNKNOWN",
+            }[response_token],
+        }
+    ]
 
     with app.app_context():
         assessment = db.session.get(Assessment, initial["assessment_id"])

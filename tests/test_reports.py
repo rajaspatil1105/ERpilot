@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app import create_app
 from models.assessment import Assessment
 from models.db import db
+from routes import triage as triage_routes
 
 
 @pytest.fixture()
@@ -110,6 +111,8 @@ def test_pdf_report_download_contains_assessment_and_safety_content(client):
     assert b"AC-01" in response.data
     assert b"1.5.13" in response.data
     assert b"Not clinically validated" in response.data
+    assert f"Assessment ID: {body['assessment_id']}".encode() in response.data
+    assert f"Patient ID: {patient_id}".encode() in response.data
 
 
 def test_docx_report_download_contains_rule_and_modifier_content(client):
@@ -148,6 +151,50 @@ def test_report_does_not_expose_another_patient_assessment(client):
     assert response.get_json()["error"] == "Assessment was not found."
 
 
+def test_reports_keep_same_patient_assessments_isolated(client):
+    patient_id = register_patient(client)
+    first = create_assessment(client, patient_id)
+    second_response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {
+                "adult_head_injury_gcs_12_or_less_initial_ed": "PRESENT",
+            },
+            "modifier_evidence": {},
+            "vitals": {},
+        },
+    )
+    assert second_response.status_code == 201
+    second = second_response.get_json()
+
+    first_report = client.get(
+        report_url(patient_id, first["assessment_id"], "pdf")
+    )
+    second_report = client.get(
+        report_url(patient_id, second["assessment_id"], "pdf")
+    )
+
+    assert first_report.status_code == second_report.status_code == 200
+    assert (
+        b'"adult_head_injury_post_traumatic_seizure": "PRESENT"'
+        in first_report.data
+    )
+    assert (
+        b'"adult_head_injury_gcs_12_or_less_initial_ed": "PRESENT"'
+        not in first_report.data
+    )
+    assert (
+        b'"adult_head_injury_gcs_12_or_less_initial_ed": "PRESENT"'
+        in second_report.data
+    )
+    assert (
+        b'"adult_head_injury_post_traumatic_seizure": "PRESENT"'
+        not in second_report.data
+    )
+
+
 @pytest.mark.parametrize(
     "path_suffix",
     ["pdf", "docx"],
@@ -184,6 +231,56 @@ def test_malformed_persisted_result_returns_consistent_error(client, app):
         )
         db.session.commit()
 
+    response = client.get(
+        report_url(patient_id, body["assessment_id"], "pdf")
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == (
+        "Assessment report could not be generated."
+    )
+
+
+def test_incomplete_persisted_inference_is_rejected(client, app):
+    patient_id = register_patient(client)
+    body = create_assessment(client, patient_id)
+
+    with app.app_context():
+        db.session.execute(
+            text(
+                "UPDATE assessments "
+                "SET inference_result_json = :value "
+                "WHERE id = :assessment_id"
+            ),
+            {"value": "{}", "assessment_id": body["assessment_id"]},
+        )
+        db.session.commit()
+
+    response = client.get(
+        report_url(patient_id, body["assessment_id"], "pdf")
+    )
+
+    assert response.status_code == 500
+    assert response.get_json()["error"] == (
+        "Assessment report could not be generated."
+    )
+
+
+def test_report_renderer_failure_returns_report_specific_error(
+    client,
+    monkeypatch,
+):
+    patient_id = register_patient(client)
+    body = create_assessment(client, patient_id)
+
+    def fail_renderer(_report_data):
+        raise RuntimeError("simulated renderer failure")
+
+    monkeypatch.setitem(
+        triage_routes.REPORT_FORMATS,
+        "pdf",
+        ("application/pdf", "pdf", fail_renderer),
+    )
     response = client.get(
         report_url(patient_id, body["assessment_id"], "pdf")
     )

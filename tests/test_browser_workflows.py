@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 from urllib.parse import urlparse
+from zipfile import ZipFile
 
 import pytest
 from werkzeug.serving import make_server
@@ -83,12 +84,15 @@ def page(browser_app):
         current_page._expected_browser_console_errors = []
         current_page._http_errors = []
         current_page._expected_http_errors = []
+        current_page._expected_download_urls = set()
         current_page.on(
             "pageerror",
             lambda error: current_page._browser_errors.append(str(error)),
         )
         def record_failed_request(request):
             if not request.url.startswith(base_url):
+                return
+            if request.url in current_page._expected_download_urls:
                 return
             if request.url in current_page._expected_failed_urls:
                 current_page._expected_failed_requests.append(request.url)
@@ -448,6 +452,51 @@ def test_modifier_results_and_checklist_survive_browser_follow_up(page):
         "Software outcome: FULL_MATCH"
     )
     assert page.locator("#modifier-rules .rule-card").count() == 2
+
+    result_ids = page.evaluate(
+        """() => {
+            const result = JSON.parse(sessionStorage.getItem('erpilotLastAssessment'));
+            return {patient: result.patient_id, assessment: result.assessment_id};
+        }"""
+    )
+    page._expected_download_urls.update(
+        f"{page.base_url}/api/patients/{result_ids['patient']}/assessments/"
+        f"{result_ids['assessment']}/report/{format}"
+        for format in ("pdf", "docx")
+    )
+
+    with page.expect_download() as pdf_info:
+        page.get_by_role("link", name="Download PDF").click()
+    pdf_download = pdf_info.value
+    assert pdf_download.suggested_filename.endswith(".pdf")
+    pdf_bytes = Path(pdf_download.path()).read_bytes()
+    for expected_text in (
+        b"ERPilot AI Assessment Report",
+        b"CT-02",
+        b"PREG-01",
+        b"ALG-01",
+        b"chest_trauma_efast_onward_transfer_not_delayed",
+        b"Q-CT-EFAST-TRANSFER",
+        b"response=YES",
+    ):
+        assert expected_text in pdf_bytes
+
+    with page.expect_download() as docx_info:
+        page.get_by_role("link", name="Download DOCX").click()
+    docx_download = docx_info.value
+    assert docx_download.suggested_filename.endswith(".docx")
+    with ZipFile(docx_download.path()) as archive:
+        report_xml = archive.read("word/document.xml").decode("utf-8")
+    for expected_text in (
+        "ERPilot AI Assessment Report",
+        "CT-02",
+        "PREG-01",
+        "ALG-01",
+        "chest_trauma_efast_onward_transfer_not_delayed",
+        "Q-CT-EFAST-TRANSFER",
+        "response=YES",
+    ):
+        assert expected_text in report_xml
 
 
 def test_triage_network_failure_shows_error_and_recovers(page, browser_app):

@@ -217,6 +217,7 @@ def create_triage_assessment():
             category,
             questions,
         )
+        inference_result["answered_follow_up_questions"] = []
         modifier_result = _evaluate_modifiers(
             modifiers,
             category,
@@ -299,6 +300,13 @@ def answer_assessment_question(patient_id: int, assessment_id: int, question_id:
             assessment.inference_result_json,
             "assessment inference result",
         )
+        answered_questions = inference_result.get(
+            "answered_follow_up_questions", []
+        )
+        if not isinstance(answered_questions, list):
+            raise RuleDataError(
+                "Persisted answered follow-up questions are not a list."
+            )
         symptom_categories = _load_symptom_categories()
         evidence = _validate_evidence(
             evidence,
@@ -346,12 +354,22 @@ def answer_assessment_question(patient_id: int, assessment_id: int, question_id:
 
         state = _question_response_state(payload, question)
         evidence[question["evidence_key"]] = state
+        answered_questions.append(
+            {
+                "question_id": question["question_id"],
+                "prompt": question["prompt"],
+                "evidence_key": question["evidence_key"],
+                "response": payload.get("response", payload.get("state")),
+                "recorded_state": state,
+            }
+        )
         inference_result = _evaluate_rules(
             rules,
             evidence,
             assessment.category,
             questions,
         )
+        inference_result["answered_follow_up_questions"] = answered_questions
         modifiers = _load_modifiers()
         modifier_result = _evaluate_modifiers(
             modifiers,
@@ -434,6 +452,13 @@ def download_assessment_report(patient_id: int, assessment_id: int, report_forma
     except (OSError, TypeError, ValueError) as error:
         current_app.logger.exception(
             "Assessment report generation failed for %s: %s",
+            assessment_id,
+            error,
+        )
+        return _error("Assessment report could not be generated.", 500)
+    except Exception as error:
+        current_app.logger.exception(
+            "Unexpected assessment report generation failure for %s: %s",
             assessment_id,
             error,
         )

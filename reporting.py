@@ -37,33 +37,52 @@ def build_report_data(assessment: Any) -> dict[str, Any]:
         getattr(assessment, "inference_result_json", None),
         "inference_result_json",
     )
-    evaluations = inference.get("evaluations", [])
-    if not isinstance(evaluations, list):
-        raise ReportDataError("inference_result_json.evaluations must be a list")
-    for key in ("full_matches", "partial_matches", "no_matches"):
-        if not isinstance(inference.get(key, []), list):
+    if inference.get("outcome") not in {
+        "FULL_MATCH",
+        "PARTIAL_MATCH",
+        "NO_MATCH",
+    }:
+        raise ReportDataError("inference_result_json.outcome is missing or invalid")
+    for key in (
+        "evaluations",
+        "full_matches",
+        "partial_matches",
+        "no_matches",
+        "explanations",
+        "follow_up_questions",
+    ):
+        if not isinstance(inference.get(key), list):
             raise ReportDataError(
                 f"inference_result_json.{key} must be a list"
             )
-    explanations = inference.get("explanations", [])
-    if not isinstance(explanations, list):
+    evaluations = inference["evaluations"]
+    explanations = inference["explanations"]
+    answered_follow_up_questions = inference.get(
+        "answered_follow_up_questions", []
+    )
+    if not isinstance(answered_follow_up_questions, list):
         raise ReportDataError(
-            "inference_result_json.explanations must be a list"
+            "inference_result_json.answered_follow_up_questions must be a list"
         )
 
     modifiers = inference.get("modifiers", {})
     if not isinstance(modifiers, Mapping):
         raise ReportDataError("inference_result_json.modifiers must be an object")
-    modifier_evidence = modifiers.get("submitted_evidence", {})
+    if modifiers.get("outcome") not in {"FULL_MATCH", "NO_MATCH"}:
+        raise ReportDataError(
+            "inference_result_json.modifiers.outcome is missing or invalid"
+        )
+    modifier_evidence = modifiers.get("submitted_evidence")
     if not isinstance(modifier_evidence, Mapping):
         raise ReportDataError(
             "inference_result_json.modifiers.submitted_evidence must be an object"
         )
-    modifier_evaluations = modifiers.get("evaluations", [])
-    if not isinstance(modifier_evaluations, list):
-        raise ReportDataError(
-            "inference_result_json.modifiers.evaluations must be a list"
-        )
+    for key in ("evaluations", "fired_modifiers", "no_matches"):
+        if not isinstance(modifiers.get(key), list):
+            raise ReportDataError(
+                f"inference_result_json.modifiers.{key} must be a list"
+            )
+    modifier_evaluations = modifiers["evaluations"]
 
     return {
         "assessment_id": assessment.id,
@@ -82,6 +101,7 @@ def build_report_data(assessment: Any) -> dict[str, Any]:
         "inference": inference,
         "evaluations": evaluations,
         "explanations": explanations,
+        "answered_follow_up_questions": answered_follow_up_questions,
         "modifiers": dict(modifiers),
         "modifier_evidence": dict(modifier_evidence),
         "modifier_evaluations": modifier_evaluations,
@@ -165,6 +185,19 @@ def generate_docx_report(report_data: Mapping[str, Any]) -> bytes:
                 f"{explanation.get('text', 'Unavailable')}"
             )
 
+    heading("Follow-up questions", level=2)
+    if report_data["answered_follow_up_questions"]:
+        for answer in report_data["answered_follow_up_questions"]:
+            paragraph(_follow_up_text(answer))
+    else:
+        paragraph("No follow-up answer history is present in the stored record.")
+    if inference["follow_up_questions"]:
+        paragraph("Currently unanswered questions:")
+        for question in inference["follow_up_questions"]:
+            paragraph(_follow_up_text(question, unanswered=True))
+    else:
+        paragraph("No follow-up questions remain unanswered.")
+
     heading("Special-condition modifiers", level=2)
     paragraph(
         "Modifier results are additive review flags. They do not replace or "
@@ -232,6 +265,19 @@ def _write_report_sections(write, report_data: Mapping[str, Any]) -> None:
                 f"Explanation for {explanation.get('rule_id', 'unknown')}: "
                 f"{explanation.get('text', 'Unavailable')}"
             )
+
+    write("Follow-up questions", heading=True)
+    if report_data["answered_follow_up_questions"]:
+        for answer in report_data["answered_follow_up_questions"]:
+            write(_follow_up_text(answer))
+    else:
+        write("No follow-up answer history is present in the stored record.")
+    if inference["follow_up_questions"]:
+        write("Currently unanswered questions:")
+        for question in inference["follow_up_questions"]:
+            write(_follow_up_text(question, unanswered=True))
+    else:
+        write("No follow-up questions remain unanswered.")
 
     write("Special-condition modifiers", heading=True)
     write(
@@ -318,6 +364,24 @@ def _modifier_text(evaluation: Any) -> str:
         f"priority override={evaluation.get('priority_override', 'Unavailable')}; "
         f"protocol={evaluation.get('protocol_reference', 'Unavailable')}; "
         f"explanation={evaluation.get('explanation', 'Unavailable')}"
+    )
+
+
+def _follow_up_text(question: Any, *, unanswered: bool = False) -> str:
+    if not isinstance(question, Mapping):
+        return "Malformed follow-up question record."
+    question_id = question.get("question_id", "unknown")
+    prompt = question.get("prompt", "Unavailable")
+    evidence_key = question.get("evidence_key", "Unavailable")
+    if unanswered:
+        return (
+            f"{question_id}: {prompt}; evidence={evidence_key}; "
+            "response=UNANSWERED"
+        )
+    return (
+        f"{question_id}: {prompt}; evidence={evidence_key}; "
+        f"response={question.get('response', 'Unavailable')}; "
+        f"recorded state={question.get('recorded_state', 'Unavailable')}"
     )
 
 

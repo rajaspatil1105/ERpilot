@@ -109,6 +109,8 @@ report includes:
 - Category, timestamps, evidence, and vitals.
 - Core outcome, triggered core rule IDs, evaluations, explanations, and
   protocol references.
+- Recorded follow-up prompts, responses, normalized evidence states, and any
+  currently unanswered questions.
 - Modifier evidence, modifier outcome, triggered modifier IDs, and additive
   review flags.
 - The provisional-priority and educational-prototype limitations.
