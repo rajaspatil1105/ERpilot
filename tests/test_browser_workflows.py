@@ -404,6 +404,52 @@ def test_chest_partial_follow_up_re_evaluation_and_duplicate_answer(page):
     )
 
 
+def test_modifier_results_and_checklist_survive_browser_follow_up(page):
+    register_patient(page)
+    page.locator("#category").select_option("chest_trauma")
+    select_state(page, "pregnancy_status_documented_pregnant", "Yes")
+    select_state(page, "anesthesia_allergy_documented", "Yes")
+    select_state(
+        page,
+        "chest_trauma_efast_specialist_team_immediately_available",
+        "Yes",
+    )
+    submit_assessment(page)
+
+    assert page.locator("#outcome-summary h2").inner_text() == (
+        "Software outcome: PARTIAL_MATCH"
+    )
+    assert page.locator("#modifier-rules .rule-card").count() == 2
+    for modifier_id in ("PREG-01", "ALG-01"):
+        card = page.locator("#modifier-rules").get_by_text(
+            modifier_id, exact=True
+        )
+        assert card.count() == 1
+        assert modifier_id in page.locator("#review-checklist").inner_text()
+    assert page.locator("#review-checklist .review-checklist-item").count() == 3
+
+    question = page.locator(".question-card")
+    question.get_by_role("button", name="Yes", exact=True).click()
+    page.wait_for_function(
+        "document.querySelector('#outcome-summary h2')?.textContent "
+        "=== 'Software outcome: FULL_MATCH'"
+    )
+    assert page.locator("#matched-rules").get_by_text(
+        "CT-02", exact=True
+    ).count() == 1
+    assert page.locator("#modifier-rules .rule-card").count() == 2
+    assert page.locator("#review-checklist .review-checklist-item").count() == 3
+    for modifier_id in ("PREG-01", "ALG-01"):
+        assert modifier_id in page.locator("#modifier-rules").inner_text()
+        assert modifier_id in page.locator("#review-checklist").inner_text()
+
+    page.reload()
+    assert page.locator("#outcome-summary h2").inner_text() == (
+        "Software outcome: FULL_MATCH"
+    )
+    assert page.locator("#modifier-rules .rule-card").count() == 2
+
+
 def test_triage_network_failure_shows_error_and_recovers(page, browser_app):
     application, _base_url = browser_app
     register_patient(page)

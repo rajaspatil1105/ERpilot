@@ -1,4 +1,5 @@
 import json
+from itertools import combinations
 import re
 from pathlib import Path
 
@@ -142,6 +143,71 @@ def test_unknown_and_absent_modifier_evidence_do_not_fire():
             evaluation["match_status"] == NO_MATCH
             for evaluation in result["evaluations"]
         )
+
+
+def test_missing_and_unknown_are_structured_separately_but_do_not_fire():
+    modifiers = validate_modifier_files(SYMPTOMS_PATH, MODIFIER_PATHS)
+    missing = run_modifier_evaluation(modifiers, "brain_trauma", {})
+    explicit_unknown = run_modifier_evaluation(
+        modifiers,
+        "brain_trauma",
+        {trigger: UNKNOWN for trigger, _modifier_id in MODIFIER_CASES},
+    )
+
+    assert missing["fired_modifiers"] == explicit_unknown["fired_modifiers"] == []
+    assert missing["submitted_evidence"] == {}
+    assert explicit_unknown["submitted_evidence"] == {
+        trigger: UNKNOWN for trigger, _modifier_id in MODIFIER_CASES
+    }
+    assert all(
+        evaluation["unknown_conditions"] == [evaluation["trigger"]]
+        and "unknown or missing" in evaluation["explanation"]
+        for evaluation in missing["evaluations"]
+    )
+
+
+def test_modifier_combinations_are_independent_of_input_order_and_do_not_change_core():
+    modifiers = validate_modifier_files(SYMPTOMS_PATH, MODIFIER_PATHS)
+    triggers = [trigger for trigger, _modifier_id in MODIFIER_CASES]
+    for present_count in range(len(triggers) + 1):
+        for present in combinations(triggers, present_count):
+            evidence = {trigger: "ABSENT" for trigger in triggers}
+            evidence.update({trigger: "PRESENT" for trigger in present})
+            forward = run_modifier_evaluation(
+                modifiers, "brain_trauma", evidence
+            )
+            reverse = run_modifier_evaluation(
+                reversed(modifiers), "brain_trauma", evidence
+            )
+            expected_ids = {
+                modifier_id
+                for trigger, modifier_id in MODIFIER_CASES
+                if trigger in present
+            }
+            assert {
+                item["modifier_id"] for item in forward["fired_modifiers"]
+            } == expected_ids
+            assert {
+                item["modifier_id"] for item in reverse["fired_modifiers"]
+            } == expected_ids
+            assert forward["outcome"] == reverse["outcome"]
+            assert len(forward["evaluations"]) == 4
+            assert len(forward["fired_modifiers"]) == len(expected_ids)
+
+
+def test_modifier_evidence_only_activates_matching_trigger_and_category_scope():
+    modifiers = validate_modifier_files(SYMPTOMS_PATH, MODIFIER_PATHS)
+    for trigger, expected_id in MODIFIER_CASES:
+        evidence = {"unrelated_evidence": "PRESENT", trigger: "PRESENT"}
+        brain = run_modifier_evaluation(modifiers, "brain_trauma", evidence)
+        chest = run_modifier_evaluation(modifiers, "chest_trauma", evidence)
+        assert {
+            item["modifier_id"] for item in brain["fired_modifiers"]
+        } == {expected_id}
+        expected_chest = {expected_id} if expected_id in {"PREG-01", "ALG-01"} else set()
+        assert {
+            item["modifier_id"] for item in chest["fired_modifiers"]
+        } == expected_chest
 
 
 def test_modifier_combination_preserves_core_result_and_persistence(client, app):
