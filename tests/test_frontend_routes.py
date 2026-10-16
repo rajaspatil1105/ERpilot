@@ -114,12 +114,15 @@ def test_assessment_page_exposes_separate_modifier_evidence(client):
     assert 'data-state="UNKNOWN"' in page
 
 
-def test_stage_6_categories_are_enabled_by_assessment_script(client):
+def test_supported_categories_are_enabled_by_assessment_script(client):
     page = client.get("/assessment").get_data(as_text=True)
     script = client.get("/static/js/assessment.js").get_data(as_text=True)
 
     assert 'value="brain_trauma"' in page
-    assert re.search(r'value="chest_trauma"\s+disabled', page)
+    assert re.search(
+        r'value="chest_trauma"[^>]*>\s*Chest Trauma\s+\(supported\)',
+        page,
+    )
     assert re.search(r'value="abdominal_trauma"\s+disabled', page)
     assert re.search(r'value="orthopedic_trauma"\s+disabled', page)
     assert "(unavailable)" in page

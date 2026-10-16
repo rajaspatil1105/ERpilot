@@ -176,6 +176,13 @@ Run the complete test suite:
 python -m pytest -q
 ```
 
+Install Playwright's Chromium browser and run the real-browser workflows:
+
+```text
+python -m playwright install chromium
+python -m pytest -q tests/test_browser_workflows.py
+```
+
 Check JavaScript syntax:
 
 ```text

@@ -2,5 +2,6 @@ Flask
 SQLAlchemy
 Flask-SQLAlchemy
 pytest
+playwright
 reportlab
 python-docx

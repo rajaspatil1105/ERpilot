@@ -17,7 +17,7 @@ from routes.triage import triage_bp
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SYMPTOMS_PATH = PROJECT_ROOT / "knowledge_base" / "symptoms.json"
-SUPPORTED_FRONTEND_CATEGORIES = {"brain_trauma"}
+SUPPORTED_FRONTEND_CATEGORIES = {"brain_trauma", "chest_trauma"}
 
 
 def create_app(test_config=None):
