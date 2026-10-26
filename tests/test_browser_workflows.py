@@ -49,6 +49,8 @@ def page(browser_app):
 
     application, base_url = browser_app
     playwright = sync_playwright().start()
+    browser = None
+    context = None
     try:
         try:
             browser = playwright.chromium.launch(headless=True)
@@ -135,9 +137,11 @@ def page(browser_app):
             current_page._expected_failed_requests
         )
         assert current_page._http_errors == current_page._expected_http_errors
-        context.close()
-        browser.close()
     finally:
+        if context is not None:
+            context.close()
+        if browser is not None:
+            browser.close()
         playwright.stop()
 
 
@@ -154,7 +158,7 @@ def register_patient(page, name="Browser Test Patient"):
 
     page.locator("#patient-name").fill(name)
     page.locator("#patient-age").fill("35.5")
-    page.locator("#patient-gender").fill("unspecified")
+    page.locator("#patient-gender").select_option("Male")
     page.locator("#incident-type").fill("fall")
     page.get_by_role("button", name="Save and continue").click()
     assert "Correct the highlighted fields" in page.locator(
@@ -163,9 +167,12 @@ def register_patient(page, name="Browser Test Patient"):
     assert "is-invalid" in page.locator("#patient-age").get_attribute("class")
 
     page.locator("#patient-age").fill("35")
-    page.locator("#patient-gender").fill("unspecified")
+    page.locator("#patient-gender").select_option("Female")
     page.locator("#incident-type").fill("fall")
     page.get_by_role("button", name="Save and continue").click()
+    page.locator("#patient-code").wait_for(state="visible")
+    code = page.locator("#patient-code").inner_text()
+    assert len(code) == 5 and code.isdigit()
     page.get_by_role("link", name="Continue to assessment").wait_for(
         state="visible"
     )
@@ -186,7 +193,7 @@ def select_state(page, evidence_key, label):
 def submit_assessment(page):
     page.get_by_role("button", name="Submit assessment").click()
     page.wait_for_url("**/results")
-    page.locator("#outcome-summary h2").wait_for(state="visible")
+    page.locator("#checklist-content").wait_for(state="visible")
 
 
 def test_registration_positive_multiple_rules_and_checklist(page, browser_app):
@@ -217,16 +224,10 @@ def test_registration_positive_multiple_rules_and_checklist(page, browser_app):
     )
     submit_assessment(page)
 
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: FULL_MATCH"
-    )
-    assert page.locator("#matched-rules .rule-card").count() == 3
-    for rule_id in ("BT-01", "BT-05", "BT-06"):
-        assert page.locator("#matched-rules").get_by_text(
-            rule_id, exact=True
-        ).count() == 1
-    assert page.locator("#review-checklist .review-checklist-item").count() == 4
-    assert "modifier ALG-01" in page.locator("#review-checklist").inner_text()
+    checklist_text = page.locator("#checklist-items").inner_text()
+    assert "urgent CT head assessment" in checklist_text
+    assert "BT-01" in checklist_text and "BT-05" in checklist_text
+    assert page.locator(".checklist-task").count() == 4
     assert len(submitted_payloads) == 1
     evidence = submitted_payloads[0]["evidence"]
     assert evidence["adult_head_injury_gcs_12_or_less_initial_ed"] == "PRESENT"
@@ -240,26 +241,63 @@ def test_registration_positive_multiple_rules_and_checklist(page, browser_app):
         assert db.session.query(Assessment).count() == 1
 
     page.reload()
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: FULL_MATCH"
-    )
+    assert "Checklist for Browser Test Patient" in page.locator(
+        "#checklist-patient"
+    ).inner_text()
     page.get_by_role("link", name="Assessment", exact=True).evaluate(
         "link => link.click()"
     )
     page.wait_for_url("**/assessment")
     assert page.url.endswith("/assessment")
-    assert "Assessment for patient ID" in page.locator(
+    assert "Patient Browser Test Patient" in page.locator(
         "#patient-context"
     ).inner_text()
+    assert "Code" in page.locator("#patient-context").inner_text()
     select_state(page, "adult_head_injury_post_traumatic_seizure", "Yes")
     page.reload()
     assert "Recorded state: Unknown" in page.locator(
         '[data-symptom-key="adult_head_injury_post_traumatic_seizure"] '
         ".evidence-status"
     ).inner_text()
-    assert "Assessment for patient ID" in page.locator(
+    assert "Patient Browser Test Patient" in page.locator(
         "#patient-context"
     ).inner_text()
+
+
+def test_unknown_trauma_forward_matches_multiple_categories_and_revises(page, browser_app):
+    application, _base_url = browser_app
+    register_patient(page)
+    page.get_by_label("Unknown Trauma").check()
+    assert page.locator("#category").is_disabled()
+    select_state(page, "adult_head_injury_post_traumatic_seizure", "Yes")
+    select_state(page, "chest_trauma_negative_chest_efast", "Yes")
+    page.get_by_role("button", name="Run forward inference").click()
+    page.wait_for_url("**/results")
+
+    checklist_text = page.locator("#checklist-items").inner_text()
+    assert "BT-05" in checklist_text and "CT-01" in checklist_text
+    assert "post-traumatic seizure" not in checklist_text.lower()
+    assert "Applicable rule evaluations" not in page.locator("body").inner_text()
+
+    page.get_by_role("link", name="Edit assessment").click()
+    page.wait_for_url("**/assessment")
+    assert page.locator("#category").is_disabled()
+    assert "Recorded state: Yes" in page.locator(
+        '[data-symptom-key="adult_head_injury_post_traumatic_seizure"] .evidence-status'
+    ).inner_text()
+    select_state(page, "adult_head_injury_post_traumatic_seizure", "No")
+    page.get_by_role("button", name="Run forward inference").click()
+    page.wait_for_url("**/results")
+    assert "BT-05" not in page.locator("#checklist-items").inner_text()
+    assert "CT-01" in page.locator("#checklist-items").inner_text()
+    page.reload()
+    assert "CT-01" in page.locator("#checklist-items").inner_text()
+
+    with application.app_context():
+        forward_assessments = db.session.query(Assessment).filter_by(
+            workflow_mode="unknown_trauma"
+        ).count()
+        assert forward_assessments == 2
 
 
 def test_unknown_no_match_refresh_and_missing_result_state(page):
@@ -270,233 +308,97 @@ def test_unknown_no_match_refresh_and_missing_result_state(page):
     ).get_attribute("aria-pressed") == "true"
     submit_assessment(page)
 
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: NO_MATCH"
-    )
-    assert "No rule matched the recorded evidence" in page.locator(
-        "#outcome-summary"
-    ).inner_text()
-    assert page.locator("#matched-rules .rule-card").count() == 0
-    assert page.locator("#unmatched-rules .rule-card").count() == 17
+    assert page.locator(".checklist-task").count() == 3
+    assert "Clinician-selected tests" in page.locator("#checklist-items").inner_text()
 
     page.reload()
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: NO_MATCH"
-    )
+    assert page.locator(".checklist-task").count() == 3
     page.evaluate("sessionStorage.removeItem('erpilotLastAssessment')")
     page.goto(f"{page.base_url}/results")
-    assert "stored assessment response is incomplete" in page.locator(
-        "#results-error"
+    assert "open it from patient records" in page.locator(
+        "#checklist-error"
     ).inner_text().lower()
-    assert "d-none" in page.locator("#results-content").get_attribute("class")
+    assert "d-none" in page.locator("#checklist-content").get_attribute("class")
 
 
-def test_chest_partial_follow_up_re_evaluation_and_duplicate_answer(page):
-    register_patient(page)
-    page.locator("#category").select_option("chest_trauma")
-    select_state(
-        page,
-        "chest_trauma_efast_specialist_team_immediately_available",
-        "Yes",
-    )
+def test_checklist_completion_and_remarks_save_to_patient_record(page, browser_app):
+    register_patient(page, "MVP Record Patient")
+    select_state(page, "adult_head_injury_post_traumatic_seizure", "Yes")
     submit_assessment(page)
-
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: PARTIAL_MATCH"
-    )
-    assert page.locator("#matched-rules").get_by_text(
-        "CT-02", exact=True
-    ).count() == 1
-    question = page.locator(".question-card")
-    assert "Q-CT-EFAST-TRANSFER" in question.inner_text()
-    assert "CT-02" in question.inner_text()
-
-    result_ids = page.evaluate(
-        """() => {
-            const result = JSON.parse(sessionStorage.getItem('erpilotLastAssessment'));
-            return {patient: result.patient_id, assessment: result.assessment_id};
-        }"""
-    )
-    question_path = (
-        f"/api/patients/{result_ids['patient']}/assessments/"
-        f"{result_ids['assessment']}/questions/Q-CT-EFAST-TRANSFER"
-    )
-
-    page.evaluate(
-        """async () => {
-            const result = JSON.parse(sessionStorage.getItem('erpilotLastAssessment'));
-            const response = await fetch(
-                `/api/patients/${result.patient_id}/assessments/`
-                    + `${result.assessment_id}/questions/Q-CT-EFAST-TRANSFER`,
-                { method: 'POST', headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify({response: 'MAYBE'}) },
-            );
-            window.invalidFollowupStatus = response.status;
-        }"""
-    )
-    assert page.evaluate("window.invalidFollowupStatus") == 400
-    page._expected_http_errors.append((question_path, 400))
-    question_url = (
-        f"{page.base_url}{question_path}"
-    )
-    page.route(
-        question_url,
-        lambda route: route.fulfill(
-            status=400,
-            content_type="application/json",
-            body='{"error":"response must be one of YES, NO, or UNKNOWN."}',
-        ),
-    )
-    question.get_by_role("button", name="Yes", exact=True).click()
-    question.locator(".question-error").wait_for(state="visible")
-    page._expected_http_errors.append((urlparse(question_url).path, 400))
-    assert "response must be one of YES, NO, or UNKNOWN" in question.inner_text()
-    assert question.get_by_role("button", name="Yes", exact=True).is_enabled()
-    page.unroute(question_url)
-
-    question = page.locator(".question-card")
-    followup_requests = []
-    page.on(
-        "request",
-        lambda request: followup_requests.append(request.url)
-        if request.url == question_url and request.method == "POST"
-        else None,
-    )
-    question.get_by_role("button", name="Yes", exact=True).evaluate(
-        "button => { button.click(); button.click(); }"
-    )
-    page.locator("#outcome-summary h2").wait_for(state="visible")
-    page.wait_for_function(
-        "document.querySelector('#outcome-summary h2')?.textContent "
-        "=== 'Software outcome: FULL_MATCH'"
-    )
-    assert page.locator("#follow-up-questions").inner_text().find(
-        "No additional relevant questions remain"
-    ) >= 0
-    assert page.locator("#matched-rules").get_by_text(
-        "CT-02", exact=True
-    ).count() == 1
-    assert followup_requests == [question_url]
-
-    duplicate_status = page.evaluate(
-        """async () => {
-            const result = JSON.parse(sessionStorage.getItem('erpilotLastAssessment'));
-            const response = await fetch(
-                `/api/patients/${result.patient_id}/assessments/`
-                    + `${result.assessment_id}/questions/Q-CT-EFAST-TRANSFER`,
-                { method: 'POST', headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify({response: 'YES'}) },
-            );
-            return response.status;
-        }"""
-    )
-    assert duplicate_status == 409
-    page._expected_http_errors.append((urlparse(question_url).path, 409))
-    missing_status = page.evaluate(
-        """async () => {
-            const response = await fetch(
-                '/api/patients/99999/assessments/99999/questions/Q-CT-EFAST-TRANSFER',
-                { method: 'POST', headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify({response: 'YES'}) },
-            );
-            return response.status;
-        }"""
-    )
-    assert missing_status == 404
-    page._expected_http_errors.append(
-        ("/api/patients/99999/assessments/99999/questions/Q-CT-EFAST-TRANSFER", 404)
-    )
-
-
-def test_modifier_results_and_checklist_survive_browser_follow_up(page):
-    register_patient(page)
-    page.locator("#category").select_option("chest_trauma")
-    select_state(page, "pregnancy_status_documented_pregnant", "Yes")
-    select_state(page, "anesthesia_allergy_documented", "Yes")
-    select_state(
-        page,
-        "chest_trauma_efast_specialist_team_immediately_available",
-        "Yes",
-    )
-    submit_assessment(page)
-
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: PARTIAL_MATCH"
-    )
-    assert page.locator("#modifier-rules .rule-card").count() == 2
-    for modifier_id in ("PREG-01", "ALG-01"):
-        card = page.locator("#modifier-rules").get_by_text(
-            modifier_id, exact=True
-        )
-        assert card.count() == 1
-        assert modifier_id in page.locator("#review-checklist").inner_text()
-    assert page.locator("#review-checklist .review-checklist-item").count() == 3
-
-    question = page.locator(".question-card")
-    question.get_by_role("button", name="Yes", exact=True).click()
-    page.wait_for_function(
-        "document.querySelector('#outcome-summary h2')?.textContent "
-        "=== 'Software outcome: FULL_MATCH'"
-    )
-    assert page.locator("#matched-rules").get_by_text(
-        "CT-02", exact=True
-    ).count() == 1
-    assert page.locator("#modifier-rules .rule-card").count() == 2
-    assert page.locator("#review-checklist .review-checklist-item").count() == 3
-    for modifier_id in ("PREG-01", "ALG-01"):
-        assert modifier_id in page.locator("#modifier-rules").inner_text()
-        assert modifier_id in page.locator("#review-checklist").inner_text()
-
+    task = page.locator(".checklist-task").filter(has_text="CT head")
+    task.locator("select.checklist-status").select_option("done")
+    task.locator("textarea").fill("Requested by clinician; completed and reviewed.")
+    page.get_by_role("button", name="Save checklist").click()
+    page.get_by_text("Saved to the patient record.").wait_for(state="visible")
     page.reload()
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: FULL_MATCH"
-    )
-    assert page.locator("#modifier-rules .rule-card").count() == 2
+    task = page.locator(".checklist-task").filter(has_text="CT head")
+    assert task.locator("select.checklist-status").input_value() == "done"
+    assert "completed and reviewed" in task.locator("textarea").input_value()
 
-    result_ids = page.evaluate(
-        """() => {
-            const result = JSON.parse(sessionStorage.getItem('erpilotLastAssessment'));
-            return {patient: result.patient_id, assessment: result.assessment_id};
-        }"""
-    )
-    page._expected_download_urls.update(
-        f"{page.base_url}/api/patients/{result_ids['patient']}/assessments/"
-        f"{result_ids['assessment']}/report/{format}"
-        for format in ("pdf", "docx")
-    )
+    page.get_by_role("link", name="Patient records", exact=True).click()
+    page.wait_for_url("**/records")
+    page.locator("#patient-search").fill("MVP Record")
+    page.get_by_role("button", name="View record").wait_for(state="visible")
+    page.get_by_role("button", name="View record").click()
+    record = page.locator("#patient-record")
+    record.get_by_role("heading", name="MVP Record Patient").wait_for(state="visible")
+    assert "MVP Record Patient" in record.inner_text()
+    assert "completed and reviewed" in record.inner_text()
+    assert "Done" in record.inner_text()
 
-    with page.expect_download() as pdf_info:
-        page.get_by_role("link", name="Download PDF").click()
-    pdf_download = pdf_info.value
-    assert pdf_download.suggested_filename.endswith(".pdf")
-    pdf_bytes = Path(pdf_download.path()).read_bytes()
-    for expected_text in (
-        b"ERPilot AI Assessment Report",
-        b"CT-02",
-        b"PREG-01",
-        b"ALG-01",
-        b"chest_trauma_efast_onward_transfer_not_delayed",
-        b"Q-CT-EFAST-TRANSFER",
-        b"response=YES",
-    ):
-        assert expected_text in pdf_bytes
 
-    with page.expect_download() as docx_info:
-        page.get_by_role("link", name="Download DOCX").click()
-    docx_download = docx_info.value
-    assert docx_download.suggested_filename.endswith(".docx")
-    with ZipFile(docx_download.path()) as archive:
-        report_xml = archive.read("word/document.xml").decode("utf-8")
-    for expected_text in (
-        "ERPilot AI Assessment Report",
-        "CT-02",
-        "PREG-01",
-        "ALG-01",
-        "chest_trauma_efast_onward_transfer_not_delayed",
-        "Q-CT-EFAST-TRANSFER",
-        "response=YES",
-    ):
-        assert expected_text in report_xml
+def test_demo_patient_code_and_copy_controls(page):
+    page.goto(f"{page.base_url}/register")
+    page.get_by_role("button", name="Fill demo details").click()
+    assert page.locator("#patient-name").input_value() == "Alex Demo"
+    assert page.locator("#incident-type").input_value() == "Demo collision"
+    assert "Fictional demo details" in page.locator("#registration-status").inner_text()
+    page.get_by_role("button", name="Save and continue").click()
+    page.locator("#patient-code-panel").wait_for(state="visible")
+    code = page.locator("#patient-code").inner_text()
+    assert len(code) == 5 and code.isdigit()
+    assert page.locator("#copy-patient-code").get_attribute("data-copy-text") == code
+    page.get_by_role("link", name="Continue to assessment").click()
+    assert code in page.locator("#patient-context").inner_text()
+
+
+def test_unsaved_checklist_warns_and_recovers_after_refresh(page):
+    register_patient(page)
+    submit_assessment(page)
+    task = page.locator(".checklist-task").filter(has_text="Clinician-selected tests")
+    task.locator("select.checklist-status").select_option("in_progress")
+    task.locator("textarea").fill("Demo draft remark")
+
+    dialogs = []
+    page.once("dialog", lambda dialog: (dialogs.append(dialog.type), dialog.dismiss()))
+    page.get_by_role("link", name="Patient records", exact=True).click()
+    assert dialogs == ["beforeunload"]
+    assert page.url.endswith("/results")
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.reload()
+    recovered = page.locator(".checklist-task").filter(has_text="Clinician-selected tests")
+    assert recovered.locator("select.checklist-status").input_value() == "in_progress"
+    assert recovered.locator("textarea").input_value() == "Demo draft remark"
+    assert "Recovered unsaved checklist edits" in page.locator("#save-status").inner_text()
+
+    page.get_by_role("button", name="Save checklist").click()
+    page.get_by_text("Saved to the patient record.").wait_for(state="visible")
+
+
+def test_conditional_chest_drain_prompt_is_opt_in_and_persisted(page):
+    register_patient(page)
+    submit_assessment(page)
+    assert "chest drain" not in page.locator("#checklist-items").inner_text().lower()
+    page.locator("#task-template").select_option("chest-drain")
+    page.get_by_role("button", name="Add prompt").click()
+    task = page.locator(".checklist-task").filter(has_text="Chest decompression")
+    assert "haemodynamic instability" in task.inner_text()
+    assert "not a procedure instruction" in task.inner_text()
+    task.locator("select.checklist-status").select_option("done")
+    task.locator("textarea").fill("Clinician decision documented.")
+    page.get_by_role("button", name="Save checklist").click()
+    page.get_by_text("Saved to the patient record.").wait_for(state="visible")
 
 
 def test_triage_network_failure_shows_error_and_recovers(page, browser_app):
@@ -531,9 +433,7 @@ def test_triage_network_failure_shows_error_and_recovers(page, browser_app):
         "button => { button.click(); button.click(); }"
     )
     page.wait_for_url("**/results")
-    assert page.locator("#outcome-summary h2").inner_text() == (
-        "Software outcome: NO_MATCH"
-    )
+    assert page.locator(".checklist-task").count() == 3
     assert triage_requests == [failing_url, failing_url]
     assert triage_statuses == [201]
     with application.app_context():

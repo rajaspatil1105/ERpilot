@@ -27,14 +27,14 @@ def client(app):
     return app.test_client()
 
 
-def test_frontend_pages_render_with_disclaimer(client, app):
-    for path in ("/register", "/assessment", "/results"):
+def test_frontend_pages_render_without_the_removed_disclaimer(client):
+    for path in ("/register", "/assessment", "/results", "/records"):
         response = client.get(path)
 
         assert response.status_code == 200
         page = response.get_data(as_text=True)
-        assert "ERPilot AI is an educational prototype" in page
-        assert app.config["EDUCATIONAL_DISCLAIMER"] in page
+        assert "ERPilot AI is an educational prototype" not in page
+        assert "not clinically validated" not in page.lower()
 
 
 def test_frontend_pages_reference_local_favicon(client):
@@ -94,7 +94,9 @@ def test_assessment_page_uses_canonical_keys_and_preserves_unknown_state(client)
     assert "Object.entries(states).filter" in script
     assert "symptomCategories.get(key) === categorySelect.value" in script
     assert "isSubmitting" in script
-    assert 'fetch("/api/triage"' in script
+    assert '"/api/triage/forward"' in script
+    assert 'value="unknown_trauma"' in page
+    assert 'value="known_category"' in page
 
 
 def test_assessment_page_exposes_separate_modifier_evidence(client):
@@ -123,9 +125,9 @@ def test_supported_categories_are_enabled_by_assessment_script(client):
         r'value="chest_trauma"[^>]*>\s*Chest Trauma\s+\(supported\)',
         page,
     )
-    assert re.search(r'value="abdominal_trauma"\s+disabled', page)
-    assert re.search(r'value="orthopedic_trauma"\s+disabled', page)
-    assert "(unavailable)" in page
+    assert "(supported)" in page
+    assert re.search(r'value="abdominal_trauma"[^>]*>\s*Abdominal Trauma\s+\(supported\)', page)
+    assert re.search(r'value="orthopedic_trauma"[^>]*>\s*Orthopedic Trauma\s+\(supported\)', page)
     for category in (
         "chest_trauma",
         "abdominal_trauma",
@@ -138,36 +140,27 @@ def test_results_page_preserves_api_result_fields_and_limitation(client):
     page = client.get("/results").get_data(as_text=True)
     script = client.get("/static/js/results.js").get_data(as_text=True)
 
-    assert "Applicable rule evaluations" in page
-    assert "Relevant follow-up questions" in page
-    assert "Configured review checklist" in page
-    for field in (
-        "assessment_id",
-        "patient_id",
-        "match_status",
-        "priority_flag",
-        "suggested_department",
-        "checklist_action",
-        "protocol_reference",
-    ):
-        assert field in script
-    assert "No rule matched the recorded evidence" in script
-    assert "modifier_result" in script
-    assert "reviewChecklist" in script
-    assert "checklist_action" in script
-    assert "suggested_department" in script
-    assert "protocol_reference" in script
-    assert "No configured option for this finding." in script
-    assert 'id="modifier-rules"' in page
-    assert 'id="review-checklist"' in page
-    assert 'id="priority-alert"' in page
-    assert 'id="report-downloads"' in page
-    assert "Provisional RED software-display priority" in script
-    assert "/report/${format}" in script
-    questions_script = client.get("/static/js/questions.js").get_data(as_text=True)
-    assert "follow_up_questions" in questions_script
-    assert "/questions/${encodeURIComponent(question.question_id)}" in questions_script
-    assert "Why this is being asked" in questions_script
+    assert "Checklist and remarks" in page
+    assert 'id="checklist-items"' in page
+    assert 'id="save-checklist"' in page
+    assert "Save checklist" in page
+    assert "patient_name" in script
+    assert "item.remark" in script
+    assert "item.completed" in script
+    assert "checklist" in script
+    assert "/checklist" in script
+    assert "outcome-summary" not in page
+    assert 'id="report-downloads"' not in page
+    assert "assessment checklist" in page.lower()
+
+
+def test_patient_records_page_exposes_name_search_and_record_button(client):
+    page = client.get("/records").get_data(as_text=True)
+    script = client.get("/static/js/patient_records.js").get_data(as_text=True)
+    assert 'id="patient-search"' in page
+    assert "View record" in script
+    assert "/api/patients?search=" in script
+    assert 'href="/records"' in page
 
 
 def test_existing_patient_and_triage_api_endpoints_remain_available(client):
@@ -202,5 +195,5 @@ def test_results_page_has_graceful_missing_result_message(client):
     page = client.get("/results").get_data(as_text=True)
     script = client.get("/static/js/results.js").get_data(as_text=True)
 
-    assert "Submit an assessment to view its results." in page
-    assert "No valid assessment result is available." in script
+    assert "No saved assessment checklist is available." in script
+    assert "Open it from Patient Records" in script

@@ -144,21 +144,45 @@ Final verification commands and actual results:
 
 ```text
 python -m pytest -q
-106 passed in 1.74s
+147 passed in 15.75s
+
+python -m pytest -q tests/test_browser_workflows.py
+5 passed in 10.28s
+
+Fresh temporary Python 3.11.9 virtual environment:
+python -m pip install -r requirements.txt
+passed
+
+Fresh temporary Playwright Chromium installation and launch:
+python -m playwright install chromium
+passed
+
+python -m compileall -q .
+passed
+
+node --check static/js/assessment.js
+passed
 
 node --check static/js/results.js
 passed
 
-node --check static/js/assessment.js
+node --check static/js/questions.js
+passed
+
+node --check static/js/registration.js
 passed
 
 git diff --check
 passed
 ```
 
-No tests were skipped or failed in that final run. No clinical performance
-metric was measured. The test fixtures are synthetic and must not be treated
-as clinical data.
+The full suite was also rerun in the fresh virtual environment using its
+isolated Chromium installation: `147 passed in 12.32s`. No tests were skipped
+or failed. The documented SQLite initialization created a temporary database;
+the Flask debug server started and `/register`, `/assessment`, and `/results`
+returned HTTP 200. The Playwright flows also exercised report downloads. No
+clinical performance metric was measured. The test fixtures are synthetic and
+must not be treated as clinical data.
 
 ## Results analysis
 
@@ -177,6 +201,12 @@ expert-review, or prospective evaluation has been performed.
 ## Limitations, assumptions, and threats to validity
 
 - There is no authentication or authorization.
+- Dependency versions in `requirements.txt` are unpinned; the clean install
+  succeeded during this verification, but future installs may resolve newer
+  releases.
+- The local Flask configuration uses `DEBUG = True` and a development-only
+  fallback secret key. The documented debug server is only for local
+  demonstrations and must not be exposed to an untrusted network.
 - The local SQLite database is not a production data store.
 - Source notes contain paraphrases and require current guideline verification.
 - PREG-01 does not identify a numbered ACOG recommendation in the current

@@ -4,10 +4,23 @@
     const form = document.getElementById("registration-form");
     const status = document.getElementById("registration-status");
     const continueLink = document.getElementById("continue-assessment");
+    const codePanel = document.getElementById("patient-code-panel");
+    const codeValue = document.getElementById("patient-code");
+    const copyCode = document.getElementById("copy-patient-code");
+    const demoButton = document.getElementById("fill-demo-patient");
 
-    if (!form || !status || !continueLink) {
+    if (!form || !status || !continueLink || !codePanel || !codeValue || !copyCode || !demoButton) {
         return;
     }
+
+    demoButton.addEventListener("click", () => {
+        form.elements.name.value = "Alex Demo";
+        form.elements.age.value = "32";
+        form.elements.gender.value = "Male";
+        form.elements.incident_type.value = "Demo collision";
+        status.className = "alert alert-info";
+        status.textContent = "Fictional demo details loaded. Saving creates a demo patient record.";
+    });
 
     function showStatus(message, kind) {
         status.className = `alert alert-${kind}`;
@@ -53,6 +66,7 @@
     form.addEventListener("submit", async (event) => {
         event.preventDefault();
         continueLink.classList.add("d-none");
+        codePanel.classList.add("d-none");
         if (!validateForm()) {
             showStatus("Correct the highlighted fields before continuing.", "danger");
             return;
@@ -78,8 +92,11 @@
                 throw new Error(body.error || "Patient registration failed.");
             }
             sessionStorage.setItem("erpilotPatient", JSON.stringify(body));
+            codeValue.textContent = body.patient_code;
+            copyCode.dataset.copyText = body.patient_code;
+            codePanel.classList.remove("d-none");
             continueLink.classList.remove("d-none");
-            showStatus(`Patient registered with ID ${body.id}.`, "success");
+            showStatus(`Patient registered. Code ${body.patient_code}.`, "success");
         } catch (error) {
             showStatus(
                 error.message || "The patient service could not be reached.",

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Patient records | ERPilot AI{% endblock %}
+
+{% block content %}
+<section class="page-heading mb-4">
+    <p class="eyebrow">Patient records</p>
+    <h1>Search patient records</h1>
+    <p class="lead">Search by patient name or code. The most recent assessment appears first.</p>
+</section>
+
+<div class="card form-card mb-4">
+    <div class="card-body">
+        <label class="form-label" for="patient-search">Patient name or code</label>
+        <input id="patient-search" class="form-control" type="search" autocomplete="off"
+            placeholder="Search by name or 5-digit patient code">
+        <div id="patient-search-status" class="form-text" role="status" aria-live="polite"></div>
+    </div>
+</div>
+<div id="patient-search-results" class="list-group mb-4"></div>
+<section id="patient-record" class="d-none" aria-live="polite"></section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/patient_records.js') }}" defer></script>
+{% endblock %}

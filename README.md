@@ -118,7 +118,12 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m playwright install chromium
 ```
+
+Playwright's Python package and its Chromium browser are installed separately.
+The browser-install command downloads the Chromium binary used by the browser
+tests.
 
 If PowerShell blocks activation, run:
 
@@ -141,6 +146,9 @@ python -m flask --app app run --debug
 
 Then open <http://127.0.0.1:5000/>.
 
+This debug server is for local demonstrations only; do not expose it to an
+untrusted network.
+
 The application uses a development-only fallback secret key. To set a local
 secret explicitly, configure `ERPILOT_SECRET_KEY` before starting the server:
 
@@ -160,6 +168,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m playwright install chromium
 python -c "from app import app; from models.db import db; app.app_context().push(); db.create_all(); print('database initialized')"
 python -m flask --app app run --debug
 ```
@@ -176,6 +185,12 @@ Run the complete test suite:
 python -m pytest -q
 ```
 
+Run Python compilation checks:
+
+```text
+python -m compileall -q .
+```
+
 Install Playwright's Chromium browser and run the real-browser workflows:
 
 ```text
@@ -188,6 +203,8 @@ Check JavaScript syntax:
 ```text
 node --check static/js/assessment.js
 node --check static/js/results.js
+node --check static/js/questions.js
+node --check static/js/registration.js
 ```
 
 Check whitespace errors:
@@ -196,7 +213,13 @@ Check whitespace errors:
 git diff --check
 ```
 
-The last verified full run reported `106 passed`.
+The Stage 9 final verification run reported `147 passed`, including five
+Playwright Chromium workflows. Run the browser workflow file separately when
+you need a distinct browser-test result:
+
+```text
+python -m pytest -q tests/test_browser_workflows.py
+```
 
 ## Application workflow
 

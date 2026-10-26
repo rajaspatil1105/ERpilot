@@ -12,6 +12,10 @@
                 Enter only the details needed to start an educational checklist
                 assessment.
             </p>
+            <div class="demo-callout" role="note">
+                <div><strong>Just exploring?</strong> Fill a clearly marked fictional patient to try the workflow.</div>
+                <button id="fill-demo-patient" class="btn btn-sm btn-outline-primary mt-2" type="button">Fill demo details</button>
+            </div>
         </div>
 
         <div id="registration-status" class="alert d-none" role="status"></div>
@@ -51,15 +55,18 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="patient-gender">Gender</label>
-                        <input
-                            class="form-control"
+                        <select
+                            class="form-select"
                             id="patient-gender"
                             name="gender"
-                            type="text"
                             required
                         >
+                            <option value="" selected disabled>Select gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
                         <div class="invalid-feedback">
-                            Enter a gender value.
+                            Select male or female.
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -76,6 +83,16 @@
                         <div class="invalid-feedback">
                             Enter an incident type.
                         </div>
+                    </div>
+                </div>
+                <div id="patient-code-panel" class="patient-code-panel d-none mt-4" role="status" aria-live="polite">
+                    <div>
+                        <span class="patient-code-label">Patient code</span>
+                        <strong id="patient-code" class="patient-code-value"></strong>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted">Use this code to find the patient record.</span>
+                        <button id="copy-patient-code" class="btn btn-sm btn-outline-success" type="button">Copy code</button>
                     </div>
                 </div>
                 <div class="d-flex flex-wrap gap-2 align-items-center mt-4">

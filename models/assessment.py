@@ -22,9 +22,14 @@ class Assessment(db.Model):
         nullable=False,
     )
     category = db.Column(db.String(100), nullable=False)
+    selected_category = db.Column(db.String(100), nullable=True)
+    workflow_mode = db.Column(
+        db.String(32), nullable=False, default="known_category"
+    )
     evidence_json = db.Column(db.Text, nullable=False)
     vitals_json = db.Column(db.Text, nullable=False)
     inference_result_json = db.Column(db.Text, nullable=False)
+    checklist_json = db.Column(db.Text, nullable=False, default="[]")
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     patient = db.relationship("Patient", back_populates="assessments")
@@ -35,7 +40,9 @@ class Assessment(db.Model):
             raise ValueError("category must be a non-empty string")
         return value.strip()
 
-    @validates("evidence_json", "vitals_json", "inference_result_json")
+    @validates(
+        "evidence_json", "vitals_json", "inference_result_json", "checklist_json"
+    )
     def validate_json_text(self, key, value):
         if not isinstance(value, str):
             raise ValueError(f"{key} must contain serialized JSON")

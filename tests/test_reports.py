@@ -95,6 +95,31 @@ def test_assessment_preserves_complete_report_data(client, app):
         assert json.loads(assessment.vitals_json) == {"heart_rate": 88}
 
 
+def test_forward_assessment_reports_keep_mode_and_unknown_category(client):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage/forward",
+        json={
+            "patient_id": patient_id,
+            "evidence": {
+                "adult_head_injury_post_traumatic_seizure": "PRESENT"
+            },
+        },
+    )
+    assert response.status_code == 201
+    assessment = response.get_json()
+    report_response = client.get(
+        report_url(patient_id, assessment["assessment_id"], "docx")
+    )
+
+    assert report_response.status_code == 200
+    with ZipFile(BytesIO(report_response.data)) as archive:
+        document_xml = archive.read("word/document.xml").decode("utf-8")
+    assert "Unknown trauma (category derived from evidence)" in document_xml
+    assert "unknown_trauma" in document_xml
+    assert "BT-05" in document_xml
+
+
 def test_pdf_report_download_contains_assessment_and_safety_content(client):
     patient_id = register_patient(client)
     body = create_assessment(client, patient_id)

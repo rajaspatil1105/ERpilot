@@ -6,6 +6,10 @@ Flask persistence. The browser automation packages and browser binaries were
 not installed in the inspected environment, so browser-only behavior is
 identified separately from Flask/client coverage.
 
+This is a historical Stage 5 snapshot. Its browser-availability statements
+describe the environment at that stage; later Chromium execution is recorded
+in [the final report](final_report.md) and `tests/test_browser_workflows.py`.
+
 | Workflow | Existing implementation | Coverage reviewed or added | Gap / limitation |
 | --- | --- | --- | --- |
 | Patient registration and validation | `POST /api/patients`; SQLAlchemy patient model; registration page and JS | `test_triage_routes.py` validates required fields, types, malformed JSON, and persistence; `test_frontend_routes.py` verifies page/API wiring | No browser execution available |

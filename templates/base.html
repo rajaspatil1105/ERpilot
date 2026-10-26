@@ -48,8 +48,8 @@
                         <a class="nav-link" href="{{ url_for('assessment_page') }}">
                             Assessment
                         </a>
-                        <a class="nav-link" href="{{ url_for('results_page') }}">
-                            Results
+                        <a class="nav-link" href="{{ url_for('patient_records_page') }}">
+                            Patient Records
                         </a>
                     </div>
                 </div>
@@ -58,10 +58,25 @@
     </header>
 
     <main id="main-content" class="container py-4">
-        <div class="alert alert-warning disclaimer" role="note">
-            <strong>Educational prototype:</strong>
-            {{ educational_disclaimer }}
-        </div>
+        {% set current_step = 1 if request.endpoint == 'register_page' else 2 if request.endpoint == 'assessment_page' else 3 if request.endpoint == 'results_page' else 4 %}
+        <nav class="workflow-steps mb-4" aria-label="Assessment workflow">
+            <ol>
+                {% set workflow = [
+                    ('register_page', 'Register', 1),
+                    ('assessment_page', 'Assess', 2),
+                    ('results_page', 'Checklist', 3),
+                    ('patient_records_page', 'Records', 4)
+                ] %}
+                {% for endpoint, label, number in workflow %}
+                <li {% if current_step == number %}class="current"{% endif %}>
+                    <a href="{{ url_for(endpoint) }}" {% if current_step == number %}aria-current="step"{% endif %}>
+                        <span class="workflow-step-number">{{ number }}</span>
+                        <span>{{ label }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ol>
+        </nav>
         {% block content %}{% endblock %}
     </main>
 
@@ -75,6 +90,7 @@
     <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     ></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,459 +1,286 @@
 (() => {
     "use strict";
 
-    const errorBox = document.getElementById("results-error");
-    const content = document.getElementById("results-content");
-    const outcomeSummary = document.getElementById("outcome-summary");
-    const priorityAlert = document.getElementById("priority-alert");
-    const metadata = document.getElementById("assessment-metadata");
-    const matchedRules = document.getElementById("matched-rules");
-    const unmatchedRules = document.getElementById("unmatched-rules");
-    const modifierRules = document.getElementById("modifier-rules");
-    const reviewChecklist = document.getElementById("review-checklist");
-    const reportDownloads = document.getElementById("report-downloads");
-    const noMatchMessage = document.getElementById("no-match-message");
-    const symptomData = document.getElementById("symptom-data");
+    const errorBox = document.getElementById("checklist-error");
+    const content = document.getElementById("checklist-content");
+    const patientHeading = document.getElementById("checklist-patient");
+    const assessmentHeading = document.getElementById("checklist-assessment");
+    const itemsContainer = document.getElementById("checklist-items");
+    const templateSelect = document.getElementById("task-template");
+    const addTaskButton = document.getElementById("add-task");
+    const saveButton = document.getElementById("save-checklist");
+    const saveStatus = document.getElementById("save-status");
+    const reviseEvidence = document.getElementById("revise-evidence");
+    const copyCodeButton = document.getElementById("copy-checklist-code");
 
-    if (
-        !errorBox
-        || !content
-        || !outcomeSummary
-        || !priorityAlert
-        || !metadata
-        || !matchedRules
-        || !unmatchedRules
-        || !modifierRules
-        || !reviewChecklist
-        || !reportDownloads
-        || !noMatchMessage
-        || !symptomData
-    ) {
+    if (!errorBox || !content || !patientHeading || !assessmentHeading
+        || !itemsContainer || !templateSelect || !addTaskButton
+        || !saveButton || !saveStatus || !reviseEvidence || !copyCodeButton) return;
+
+    const guidance = {
+        imaging: {
+            group: "Tests & imaging",
+            title: "CT / X-ray / ultrasound decision",
+            details: "If selected by the responsible clinician, record the body region, clinical indication, modality, order/completion time, and result. This prompt does not indicate that imaging is required.",
+            source: "NICE NG39, recommendations 1.4.3, 1.4.5 and 1.5.28",
+            source_url: "https://www.nice.org.uk/guidance/ng39/chapter/Recommendations",
+        },
+        "blood-tests": {
+            group: "Tests & imaging",
+            title: "Clinician-selected blood tests",
+            details: "Enter each test selected by the responsible clinician, its indication, collection time, and result. This MVP does not prescribe a standard trauma blood-test panel.",
+            source: "Local clinical protocol / responsible clinician",
+        },
+        "head-imaging": {
+            group: "Tests & imaging",
+            title: "Head injury imaging decision",
+            details: "Record the responsible clinician's imaging decision using the age-specific head-injury criteria and radiology discussion. NICE identifies CT as the primary initial investigation for acute clinically important traumatic brain injury; MRI is not the primary initial test.",
+            source: "NICE NG232, recommendations 1.4.8, 1.5.1 and 1.5.2",
+            source_url: "https://www.nice.org.uk/guidance/ng232/chapter/recommendations",
+        },
+        mri: {
+            group: "Tests & imaging",
+            title: "MRI decision",
+            details: "Record the clinician's indication and decision. NICE states MRI is not the primary investigation for acute clinically important traumatic brain injury; use it only when specifically selected for a clinical indication.",
+            source: "NICE NG232, recommendations 1.5.1 and 1.5.2",
+            source_url: "https://www.nice.org.uk/guidance/ng232/chapter/recommendations",
+        },
+        "chest-drain": {
+            group: "Procedures",
+            title: "Chest decompression / chest drain decision",
+            details: "Conditional documentation prompt only: for a clinician-suspected tension pneumothorax, record the decision when haemodynamic instability or severe respiratory compromise is present. If selected or performed, follow the current local protocol and record the responsible team and status. This is not a procedure instruction.",
+            source: "NICE NG39, recommendations 1.4.1 and 1.4.2",
+            source_url: "https://www.nice.org.uk/guidance/ng39/chapter/Recommendations",
+        },
+        "custom-procedure": {
+            group: "Procedures",
+            title: "Other clinician-selected procedure / intervention",
+            details: "Record the clinician-selected procedure, indication, responsible team, time, and status. Follow local protocol; this prompt does not indicate that a procedure is required.",
+            source: "Local clinical protocol",
+        },
+    };
+
+    let result;
+    let items;
+    let dirty = false;
+    try {
+        result = JSON.parse(sessionStorage.getItem("erpilotLastAssessment"));
+        if (!result || !Number.isInteger(result.assessment_id)
+            || !Number.isInteger(result.patient_id) || !Array.isArray(result.checklist)) {
+            throw new Error("No saved assessment checklist is available. Open it from Patient Records.");
+        }
+        items = result.checklist;
+        try {
+            const savedDraft = JSON.parse(sessionStorage.getItem("erpilotChecklistDraft"));
+            if (savedDraft?.assessment_id === result.assessment_id && Array.isArray(savedDraft.checklist)) {
+                items = savedDraft.checklist;
+                dirty = true;
+                saveStatus.textContent = "Recovered unsaved checklist edits from this browser.";
+            }
+        } catch (_error) {
+            sessionStorage.removeItem("erpilotChecklistDraft");
+        }
+    } catch (error) {
+        errorBox.className = "alert alert-warning";
+        errorBox.textContent = error.message || "The checklist could not be loaded.";
         return;
     }
 
-    function addText(parent, tag, text, className = "") {
+    function addText(parent, tag, value, className = "") {
         const element = document.createElement(tag);
-        element.textContent = text;
-        if (className) {
-            element.className = className;
-        }
+        element.textContent = String(value ?? "");
+        if (className) element.className = className;
         parent.appendChild(element);
         return element;
     }
 
-    function addDefinition(parent, term, value) {
-        addText(parent, "dt", term, "col-sm-4 fw-semibold");
-        addText(parent, "dd", value, "col-sm-8");
-    }
-
-    function categoryLabel(category) {
-        return String(category || "Uncategorised")
-            .replaceAll("_", " ")
-            .replace(/\b\w/g, (letter) => letter.toUpperCase());
-    }
-
-    function conditionLabel(key, labels) {
-        return labels[key] ? `${labels[key]} (${key})` : key;
-    }
-
-    function addConditionList(parent, title, values, labels) {
-        if (!Array.isArray(values) || values.length === 0) {
-            return;
-        }
-        addText(parent, "h4", title, "h6 mt-3");
-        const list = document.createElement("ul");
-        for (const value of values) {
-            addText(list, "li", conditionLabel(value, labels));
-        }
-        parent.appendChild(list);
-    }
-
-    function addProtocol(parent, reference) {
-        if (!reference) {
-            return;
-        }
-        const paragraph = document.createElement("p");
-        addText(paragraph, "strong", "Protocol reference: ");
-        const urlMatch = reference.match(/https?:\/\/\S+/);
-        if (urlMatch) {
-            const beforeUrl = reference.slice(0, urlMatch.index);
-            const url = urlMatch[0].replace(/[).,]+$/, "");
-            if (beforeUrl) {
-                paragraph.appendChild(document.createTextNode(beforeUrl));
-            }
-            const link = document.createElement("a");
-            link.href = url;
+    function renderSource(parent, source, sourceUrl) {
+        if (!source) return;
+        const line = document.createElement("p");
+        line.className = "small text-muted mb-2";
+        addText(line, "span", `${source} `);
+        if (sourceUrl && /^https?:\/\//i.test(sourceUrl)) {
+            const link = addText(line, "a", "Guidance");
+            link.href = sourceUrl;
             link.target = "_blank";
-            link.rel = "noopener";
-            link.textContent = url;
-            paragraph.appendChild(link);
-        } else {
-            paragraph.appendChild(document.createTextNode(reference));
+            link.rel = "noopener noreferrer";
         }
-        parent.appendChild(paragraph);
+        parent.appendChild(line);
     }
 
-    function statusDetails(status) {
-        return {
-            FULL_MATCH: {
-                className: "status-full",
-                text: "Full match: every required condition was recorded as present.",
-            },
-            PARTIAL_MATCH: {
-                className: "status-partial",
-                text: "Partial match: at least one condition is present and another remains unresolved.",
-            },
-            NO_MATCH: {
-                className: "status-none",
-                text: "No match: the evidence does not satisfy this rule; unknown evidence is not confirmed absent.",
-            },
-        }[status] || {
-            className: "status-none",
-            text: "The returned rule status is not configured for display.",
-        };
-    }
-
-    function ruleCard(evaluation, explanation, labels) {
-        const column = document.createElement("div");
-        column.className = "col-lg-6";
+    function renderItem(item, index) {
         const card = document.createElement("article");
-        card.className = "card rule-card";
-        const header = document.createElement("div");
-        const details = statusDetails(evaluation.match_status);
-        header.className = "card-header d-flex justify-content-between gap-2";
-        addText(header, "h3", evaluation.rule_id, "h5 mb-0");
-        addText(
-            header,
-            "span",
-            evaluation.match_status,
-            `badge status-badge ${details.className}`,
-        );
-        card.appendChild(header);
-
+        card.className = "card form-card checklist-task";
         const body = document.createElement("div");
-        body.className = "card-body";
-        addText(body, "p", details.text, "status-explanation");
-        if (evaluation.conclusion) {
-            addText(body, "p", `Conclusion: ${evaluation.conclusion}`);
-        }
-        if (evaluation.priority_flag) {
-            addText(
-                body,
-                "p",
-                `Software priority flag: ${evaluation.priority_flag} (not a definitive clinical triage decision).`,
-            );
-        }
-        if (evaluation.suggested_department) {
-            addText(body, "p", `Configured review area: ${evaluation.suggested_department}`);
-        }
-        if (evaluation.checklist_action) {
-            addText(body, "p", `Clinician-review item: ${evaluation.checklist_action}`);
-        }
-        addConditionList(body, "Present conditions", evaluation.present_conditions, labels);
-        addConditionList(body, "Explicitly absent conditions", evaluation.absent_conditions, labels);
-        addConditionList(body, "Unknown or missing conditions", evaluation.unknown_conditions, labels);
-        if (explanation) {
-            addText(body, "p", explanation, "small text-muted mt-3");
-        }
-        addProtocol(body, evaluation.protocol_reference);
-        card.appendChild(body);
-        column.appendChild(card);
-        return column;
-    }
-
-    function createRuleGroup(category, heading) {
-        const group = document.createElement("section");
-        group.className = "rule-category-group";
-        group.setAttribute("aria-labelledby", `${heading}-${category}`);
-        addText(
-            group,
-            "h3",
-            categoryLabel(category),
-            "h4 rule-category-heading",
-        ).id = `${heading}-${category}`;
-        const grid = document.createElement("div");
-        grid.className = "row g-3";
-        group.appendChild(grid);
-        return { group, grid };
-    }
-
-    function renderRuleGroups(container, evaluations, labels, explanations, heading) {
-        if (!evaluations.length) {
-            return false;
-        }
-        const groups = new Map();
-        for (const evaluation of evaluations) {
-            const category = evaluation.category || "uncategorised";
-            if (!groups.has(category)) {
-                groups.set(category, createRuleGroup(category, heading));
-            }
-            groups.get(category).grid.appendChild(
-                ruleCard(evaluation, explanations[evaluation.rule_id], labels),
-            );
-        }
-        for (const { group } of groups.values()) {
-            container.appendChild(group);
-        }
-        return true;
-    }
-
-    function modifierCard(evaluation, labels) {
-        const column = document.createElement("div");
-        column.className = "col-lg-6";
-        const card = document.createElement("article");
-        card.className = "card rule-card";
-        const header = document.createElement("div");
-        const details = statusDetails(evaluation.match_status);
-        header.className = "card-header d-flex justify-content-between gap-2";
-        addText(header, "h3", evaluation.modifier_id, "h5 mb-0");
-        addText(
-            header,
-            "span",
-            evaluation.match_status,
-            `badge status-badge ${details.className}`,
-        );
-        card.appendChild(header);
-
-        const body = document.createElement("div");
-        body.className = "card-body";
-        addText(body, "p", details.text, "status-explanation");
-        addText(body, "p", `Trigger: ${conditionLabel(evaluation.trigger, labels)}`);
-        addText(body, "p", `Review item: ${evaluation.action}`);
-        addText(
-            body,
-            "p",
-            `Priority override: ${evaluation.priority_override} (NONE preserves the core software priority).`,
-        );
-        addConditionList(body, "Matched conditions", evaluation.matched_conditions, labels);
-        addConditionList(body, "Unknown or missing conditions", evaluation.unknown_conditions, labels);
-        addConditionList(body, "Explicitly absent conditions", evaluation.absent_conditions, labels);
-        if (evaluation.explanation) {
-            addText(body, "p", evaluation.explanation, "small text-muted mt-3");
-        }
-        addProtocol(body, evaluation.protocol_reference);
-        card.appendChild(body);
-        column.appendChild(card);
-        return column;
-    }
-
-    function addChecklistItem(item, index) {
-        const card = document.createElement("article");
-        card.className = "review-checklist-item";
-        const row = document.createElement("div");
-        row.className = "form-check";
-        const input = document.createElement("input");
-        input.className = "form-check-input";
-        input.type = "checkbox";
-        input.id = `review-item-${index}`;
+        body.className = "card-body p-3 p-md-4";
+        const checkRow = document.createElement("div");
+        checkRow.className = "form-check mb-2";
         const label = document.createElement("label");
-        label.className = "form-check-label fw-semibold";
-        label.htmlFor = input.id;
-        label.textContent = `Review ${item.id}`;
-        row.appendChild(input);
-        row.appendChild(label);
-        card.appendChild(row);
-        addText(card, "p", item.action, "mb-2 mt-2");
-        if (item.department) {
-            addText(card, "p", `Configured review area: ${item.department}`, "small text-muted");
-        }
-        const reviewStatus = addText(
-            card,
-            "p",
-            "Not marked as reviewed on this page.",
-            "small text-muted mb-2",
-        );
-        input.addEventListener("change", () => {
-            reviewStatus.textContent = input.checked
-                ? "Marked as reviewed on this page only."
-                : "Not marked as reviewed on this page.";
+        label.className = "form-label fw-semibold mb-0";
+        label.textContent = item.title;
+        const statusSelect = document.createElement("select");
+        statusSelect.className = "form-select checklist-status";
+        statusSelect.setAttribute("aria-label", `Status for ${item.title}`);
+        const statuses = [
+            ["not_started", "Not started"],
+            ["in_progress", "In progress"],
+            ["done", "Done"],
+            ["not_applicable", "Not applicable"],
+        ];
+        statuses.forEach(([value, labelText]) => {
+            const option = document.createElement("option");
+            option.value = value;
+            option.textContent = labelText;
+            statusSelect.appendChild(option);
         });
-        addProtocol(card, item.source);
+        statusSelect.value = item.status || (item.completed ? "done" : "not_started");
+        statusSelect.addEventListener("change", () => {
+            item.status = statusSelect.value;
+            item.completed = statusSelect.value === "done";
+            markUnsaved();
+        });
+        const statusRow = document.createElement("div");
+        statusRow.className = "checklist-status-row";
+        statusRow.append(label, statusSelect);
+        checkRow.appendChild(statusRow);
+        body.appendChild(checkRow);
+        if (item.details) addText(body, "p", item.details, "text-muted mb-2");
+        if (Array.isArray(item.rule_ids) && item.rule_ids.length) {
+            addText(body, "p", `Generated from configured item(s): ${item.rule_ids.join(", ")}`, "small text-muted mb-2");
+        }
+        if (item.source) renderSource(body, item.source, item.source_url);
+        if (Array.isArray(item.sources)) {
+            item.sources.forEach((source) => {
+                const match = source.match(/https?:\/\/\S+/);
+                renderSource(body, source.replace(/https?:\/\/\S+/, "").trim(), match?.[0]);
+            });
+        }
+        const remarkLabel = addText(body, "label", "Remark", "form-label mt-2");
+        const remark = document.createElement("textarea");
+        remark.className = "form-control checklist-remark";
+        remark.rows = 2;
+        remark.maxLength = 5000;
+        remark.value = item.remark || "";
+        remark.id = `task-remark-${index}`;
+        remarkLabel.htmlFor = remark.id;
+        remark.placeholder = "Add a remark for the patient record";
+        remark.addEventListener("input", () => {
+            item.remark = remark.value;
+            markUnsaved();
+        });
+        body.appendChild(remark);
+        card.appendChild(body);
         return card;
     }
 
-    function renderReviewChecklist(matched, modifiers) {
-        const items = matched
-            .filter((evaluation) => evaluation.checklist_action)
-            .map((evaluation) => ({
-                id: `rule ${evaluation.rule_id}`,
-                action: evaluation.checklist_action,
-                department: evaluation.suggested_department,
-                source: evaluation.protocol_reference,
-            }));
-        for (const modifier of modifiers.fired_modifiers || []) {
-            if (modifier.action) {
-                items.push({
-                    id: `modifier ${modifier.modifier_id}`,
-                    action: modifier.action,
-                    source: modifier.protocol_reference,
-                });
-            }
-        }
-        if (!items.length) {
-            addText(
-                reviewChecklist,
-                "p",
-                "No configured option for this finding.",
-                "text-muted",
-            );
+    function render() {
+        itemsContainer.replaceChildren();
+        const groupOrder = ["Calls & escalation", "Tests & imaging", "Procedures", "Other actions"];
+        const groups = new Map();
+        items.forEach((item) => {
+            const group = item.group || inferGroup(item.title);
+            if (!groups.has(group)) groups.set(group, []);
+            groups.get(group).push(item);
+        });
+        const names = [...groups.keys()].sort((a, b) => {
+            const ai = groupOrder.indexOf(a);
+            const bi = groupOrder.indexOf(b);
+            return (ai < 0 ? groupOrder.length : ai) - (bi < 0 ? groupOrder.length : bi) || a.localeCompare(b);
+        });
+        names.forEach((name) => {
+            const section = document.createElement("section");
+            section.className = "checklist-group";
+            section.setAttribute("aria-label", name);
+            addText(section, "h3", name, "h5 mb-3");
+            const cards = document.createElement("div");
+            cards.className = "d-grid gap-3";
+            groups.get(name).forEach((item, index) => cards.appendChild(renderItem(item, index)));
+            section.appendChild(cards);
+            itemsContainer.appendChild(section);
+        });
+        patientHeading.textContent = `Checklist for ${result.patient_name || "Patient"}`;
+        assessmentHeading.textContent = `Code ${result.patient_code || "—"} · Patient ID ${result.patient_id} · Assessment ${result.assessment_id} · ${result.workflow_mode === "unknown_trauma" ? "Unknown trauma" : (result.selected_category || result.category)}`;
+        copyCodeButton.dataset.copyText = result.patient_code || "";
+        copyCodeButton.disabled = !result.patient_code;
+        content.classList.remove("d-none");
+    }
+
+    function inferGroup(title) {
+        const normalized = String(title).toLowerCase();
+        if (/page|call|escalat|refer/.test(normalized)) return "Calls & escalation";
+        if (/procedure|intervention|drain|decompression/.test(normalized)) return "Procedures";
+        if (/ct|x-ray|xray|mri|imag|blood|test|scan|investigat/.test(normalized)) return "Tests & imaging";
+        return "Other actions";
+    }
+
+    function markUnsaved() {
+        dirty = true;
+        saveStatus.textContent = "Unsaved changes — save to update the patient record.";
+        sessionStorage.setItem("erpilotChecklistDraft", JSON.stringify({
+            assessment_id: result.assessment_id,
+            checklist: items,
+        }));
+    }
+
+    window.addEventListener("beforeunload", (event) => {
+        if (!dirty) return;
+        event.preventDefault();
+        event.returnValue = "";
+    });
+
+    reviseEvidence.addEventListener("click", () => {
+        sessionStorage.setItem("erpilotAssessmentDraft", JSON.stringify(result));
+    });
+
+    addTaskButton.addEventListener("click", () => {
+        const task = guidance[templateSelect.value];
+        if (!task) {
+            saveStatus.textContent = "Choose a checklist prompt first.";
             return;
         }
-        items.forEach((item, index) => {
-            reviewChecklist.appendChild(addChecklistItem(item, index));
-        });
-    }
+        const newItem = {
+            id: `manual:${crypto.randomUUID()}`,
+            ...task,
+            completed: false,
+            status: "not_started",
+            remark: "",
+        };
+        if (!items.some((item) => item.id === newItem.id)) items.push(newItem);
+        templateSelect.value = "";
+        markUnsaved();
+        render();
+    });
 
-    function showError(message) {
-        errorBox.className = "alert alert-danger";
-        errorBox.textContent = message;
-        content.classList.add("d-none");
-    }
-
-    let result;
-    let symptoms;
-    try {
-        result = JSON.parse(sessionStorage.getItem("erpilotLastAssessment"));
-        symptoms = JSON.parse(symptomData.textContent);
-        if (
-            !result
-            || typeof result !== "object"
-            || !result.inference_result
-            || !Array.isArray(result.inference_result.evaluations)
-            || typeof result.outcome !== "string"
-        ) {
-            throw new Error("The stored assessment response is incomplete.");
+    saveButton.addEventListener("click", async () => {
+        saveButton.disabled = true;
+        saveButton.textContent = "Saving…";
+        saveStatus.textContent = "";
+        try {
+            const response = await fetch(
+                `/api/patients/${result.patient_id}/assessments/${result.assessment_id}/checklist`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ items }),
+                },
+            );
+            let body;
+            try { body = await response.json(); } catch (_error) { body = {}; }
+            if (!response.ok) throw new Error(body.error || "Checklist could not be saved.");
+            items = body.checklist;
+            result.checklist = items;
+            sessionStorage.setItem("erpilotLastAssessment", JSON.stringify(result));
+            sessionStorage.removeItem("erpilotChecklistDraft");
+            dirty = false;
+            saveStatus.textContent = "Saved to the patient record.";
+            render();
+        } catch (error) {
+            saveStatus.textContent = error.message || "The checklist service could not be reached.";
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = "Save checklist";
         }
-    } catch (error) {
-        showError(error.message || "No valid assessment result is available.");
-        return;
-    }
+    });
 
-    const labels = {};
-    for (const symptom of symptoms) {
-        labels[symptom.key] = symptom.label;
-    }
-    const inference = result.inference_result;
-    const explanations = {};
-    for (const explanation of inference.explanations || []) {
-        explanations[explanation.rule_id] = explanation.text;
-    }
-
-    const outcomeClass = {
-        FULL_MATCH: "outcome-full",
-        PARTIAL_MATCH: "outcome-partial",
-        NO_MATCH: "outcome-none",
-    }[result.outcome] || "outcome-none";
-    outcomeSummary.className = `outcome-panel ${outcomeClass}`;
-    addText(outcomeSummary, "h2", `Software outcome: ${result.outcome}`, "h3");
-    if (result.outcome === "NO_MATCH") {
-        addText(
-            outcomeSummary,
-            "p",
-            "No rule matched the recorded evidence. Unknown information is not a confirmed negative finding.",
-        );
-    } else if (result.outcome === "PARTIAL_MATCH") {
-        addText(
-            outcomeSummary,
-            "p",
-            "Some rule conditions were recorded as present, while other conditions remain unknown or incomplete.",
-        );
-    } else {
-        addText(
-            outcomeSummary,
-            "p",
-            "All conditions for one or more rules were recorded as present. Review the rule details and protocol reference.",
-        );
-    }
-
-    addDefinition(metadata, "Assessment ID", String(result.assessment_id));
-    addDefinition(metadata, "Patient ID", String(result.patient_id));
-    addDefinition(metadata, "Category", categoryLabel(result.category));
-    addDefinition(
-        metadata,
-        "Recorded evidence",
-        `${Object.keys(result.evidence || {}).length} core evidence entries`,
-    );
-
-    const matched = [
-        ...(inference.full_matches || []),
-        ...(inference.partial_matches || []),
-    ];
-    const redEvaluations = matched.filter(
-        (evaluation) => evaluation.priority_flag === "RED",
-    );
-    if (redEvaluations.length) {
-        addText(
-            priorityAlert,
-            "strong",
-            "Provisional RED software-display priority",
-        );
-        addText(
-            priorityAlert,
-            "p",
-            "One or more applicable rule evaluations use RED. This is not "
-                + "a clinically validated triage category; review the "
-                + "recorded evidence and qualified clinical judgment.",
-        );
-        addText(
-            priorityAlert,
-            "p",
-            `Applicable RED rule IDs: ${
-                redEvaluations.map((evaluation) => evaluation.rule_id).join(", ")
-            }`,
-            "mb-0",
-        );
-        priorityAlert.classList.remove("d-none");
-    }
-
-    if (!renderRuleGroups(
-        matchedRules,
-        matched,
-        labels,
-        explanations,
-        "matched",
-    )) {
-        addText(
-            matchedRules,
-            "p",
-            "No full or partial rule matches were returned.",
-            "text-muted",
-        );
-    }
-
-    const unmatched = inference.no_matches || [];
-    noMatchMessage.textContent = unmatched.length
-        ? "These rules did not match. Their unknown and explicitly absent conditions are shown without interpretation."
-        : "The API returned no unmatched rules.";
-    renderRuleGroups(unmatchedRules, unmatched, labels, explanations, "unmatched");
-
-    const modifiers = result.modifier_result
-        || inference.modifiers
-        || { evaluations: [], fired_modifiers: [] };
-    for (const evaluation of modifiers.evaluations || []) {
-        modifierRules.appendChild(modifierCard(evaluation, labels));
-    }
-    if (!modifierRules.children.length) {
-        addText(
-            modifierRules,
-            "p",
-            "No applicable special-condition modifiers were evaluated.",
-            "text-muted",
-        );
-    }
-    renderReviewChecklist(matched, modifiers);
-
-    for (const [format, label] of [["pdf", "Download PDF"], ["docx", "Download DOCX"]]) {
-        const link = document.createElement("a");
-        link.className = "btn btn-outline-primary";
-        link.href = (
-            `/api/patients/${encodeURIComponent(result.patient_id)}`
-            + `/assessments/${encodeURIComponent(result.assessment_id)}`
-            + `/report/${format}`
-        );
-        link.textContent = label;
-        reportDownloads.appendChild(link);
-    }
-
-    errorBox.classList.add("d-none");
-    content.classList.remove("d-none");
+    render();
 })();

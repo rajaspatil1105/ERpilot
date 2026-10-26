@@ -7,6 +7,31 @@ validated, not intended for real-patient care, and not a substitute for
 qualified clinical judgment. The demonstration shows software behavior and
 traceability, not a clinical diagnosis or triage decision.
 
+## MVP checklist and patient records
+
+The assessment output is a short task checklist. Tasks generated from matched
+configured rules are grouped by distinct action. The checklist also provides
+places to record clinician-selected investigations, a page/consultation, and
+a procedure decision. Tick completed tasks, enter remarks, and select **Save
+checklist**. Open **Patient Records**, search by patient name, then select
+**View record** to review saved checklist state and remarks.
+
+Optional prompts are references for recording a clinician's decision, not
+orders. The head-injury prompt links to [NICE NG232](https://www.nice.org.uk/guidance/ng232/chapter/recommendations),
+which identifies CT as the primary initial investigation for acute clinically
+important traumatic brain injury and says MRI is not the primary initial test.
+The optional chest-decompression prompt states the specific condition in
+[NICE NG39 recommendations 1.4.1–1.4.2](https://www.nice.org.uk/guidance/ng39/chapter/Recommendations):
+clinician-suspected tension pneumothorax with haemodynamic instability or
+severe respiratory compromise. It contains no procedural steps. The paging
+prompt points to [NICE NG40 recommendation 1.3.3](https://www.nice.org.uk/guidance/ng40/chapter/recommendations),
+which directs trauma response according to the site's written local guidance.
+
+The MVP does not select a standard blood-test panel or order any test or
+procedure. The responsible clinician records what was chosen and why. Use
+fictional data only; the local prototype does not provide authentication or
+clinical validation.
+
 ## Prerequisites
 
 From the repository root:
@@ -15,6 +40,7 @@ From the repository root:
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python -m playwright install chromium
 python -c "from app import app; from models.db import db; app.app_context().push(); db.create_all(); print('database initialized')"
 python -m flask --app app run --debug
 ```
@@ -23,6 +49,39 @@ Open <http://127.0.0.1:5000/>. The equivalent macOS/Linux commands are in the
 root [README](../README.md).
 
 ## Recommended demonstration sequence
+
+### 0. Show the two reasoning directions
+
+On `/assessment`, choose **Unknown Trauma** to enter findings without choosing
+a category. The app submits the recorded evidence to all configured core rules
+and shows category outcomes only when a rule fully matches. Choose **Known
+Trauma Category** to select a goal category; the existing goal-directed rule
+evaluation can then ask configured follow-up questions for unresolved partial
+matches.
+
+For a verified forward example, record:
+
+```text
+Adult head injury post-traumatic seizure: Yes
+Chest trauma negative chest eFAST: Yes
+All other core evidence: Unknown
+```
+
+The configured rules produce full matches BT-05 (`brain_trauma`,
+`adult_head_injury_urgent_clinician_review`) and CT-01 (`chest_trauma`,
+`chest_trauma_pneumothorax_not_excluded`). Both rule IDs and their recorded
+supporting conditions appear in the results; no category is selected in this
+workflow. Marking the seizure No and rerunning removes BT-05 while the chest
+match remains.
+
+For backward chaining, choose **Known Trauma Category**, select **Chest
+Trauma**, and set `chest_trauma_efast_specialist_team_immediately_available`
+to Yes while leaving
+`chest_trauma_efast_onward_transfer_not_delayed` Unknown. This produces CT-02
+as a partial match and asks the configured `Q-CT-EFAST-TRANSFER` question
+about whether onward transfer would be delayed. Answer Yes to mark that
+prerequisite present; CT-02 then becomes a full match. This demonstrates
+reasoning from the selected category goal toward its prerequisites.
 
 ### 1. Register a fictional patient
 
@@ -162,8 +221,10 @@ http://127.0.0.1:5000/api/patients/<patient_id>/assessments/<assessment_id>/repo
 The automated suite verifies the category-specific rules, modifier
 coexistence, persistence, report content and MIME types, wrong-patient
 denial, malformed persisted data, frontend contracts, and RED-alert markup.
-The JavaScript syntax checks also pass. No browser automation or screenshot
-verification is claimed by this guide.
+The five Playwright Chromium workflows exercise registration, assessment,
+follow-up, result refresh, report downloads, and error recovery. The Stage 9
+full run reported 147 passing tests. JavaScript syntax checks cover all four
+frontend scripts. Browser screenshot verification is not part of the suite.
 
 ## Cleanup
 

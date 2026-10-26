@@ -87,7 +87,16 @@ def build_report_data(assessment: Any) -> dict[str, Any]:
     return {
         "assessment_id": assessment.id,
         "patient_id": patient.id,
-        "category": assessment.category,
+        "category": (
+            "Unknown trauma (category derived from evidence)"
+            if getattr(assessment, "selected_category", None) is None
+            and getattr(assessment, "workflow_mode", "known_category") == "unknown_trauma"
+            else getattr(assessment, "selected_category", None)
+            or assessment.category
+        ),
+        "workflow_mode": getattr(
+            assessment, "workflow_mode", "known_category"
+        ),
         "created_at": _format_datetime(assessment.created_at),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "patient": {
@@ -320,6 +329,7 @@ def _identity_lines(report_data: Mapping[str, Any]) -> list[tuple[str, Any]]:
         ("Gender", patient["gender"]),
         ("Incident type", patient["incident_type"]),
         ("Trauma category", report_data["category"]),
+        ("Workflow mode", report_data.get("workflow_mode", "known_category")),
         ("Assessment created at", report_data["created_at"]),
     ]
 

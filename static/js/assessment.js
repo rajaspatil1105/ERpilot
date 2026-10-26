@@ -6,6 +6,7 @@
     const patientContext = document.getElementById("patient-context");
     const symptomData = document.getElementById("symptom-data");
     const categorySelect = document.getElementById("category");
+    const modeInputs = [...document.querySelectorAll(".workflow-mode")];
     const evidenceCount = document.getElementById("evidence-count");
     const vitalsList = document.getElementById("vitals-list");
     const addVitalButton = document.getElementById("add-vital");
@@ -65,6 +66,9 @@
 
     let vitalCounter = 0;
     let isSubmitting = false;
+    const workflowMode = () => modeInputs.find((input) => input.checked)?.value
+        || "known_category";
+    let draftAssessment = null;
 
     function showStatus(message, kind) {
         status.className = `alert alert-${kind}`;
@@ -89,10 +93,19 @@
 
     function updateCategoryVisibility() {
         const category = categorySelect.value;
+        const isUnknown = workflowMode() === "unknown_trauma";
         document.querySelectorAll(".symptom-category-panel").forEach((panel) => {
-            const visible = panel.dataset.category === category;
+            const visible = isUnknown || panel.dataset.category === category;
             panel.hidden = !visible;
         });
+        categorySelect.disabled = isUnknown;
+        document.getElementById("category-selector-card").hidden = isUnknown;
+        document.getElementById("core-evidence-heading").textContent = isUnknown
+            ? "All supported core evidence"
+            : "Category checklist";
+        submitButton.textContent = isUnknown
+            ? "Run forward inference"
+            : "Submit assessment";
         updateCount();
     }
 
@@ -100,7 +113,9 @@
         const category = categorySelect.value;
         return symptoms
             .filter((symptom) => (
-                symptom.category === category
+                (workflowMode() === "unknown_trauma"
+                    && symptom.category !== "special_condition")
+                || symptom.category === category
                 || symptom.category === "special_condition"
             ))
             .map((symptom) => symptom.key);
@@ -191,6 +206,11 @@
     }
 
     const patient = getPatient();
+    try {
+        draftAssessment = JSON.parse(sessionStorage.getItem("erpilotAssessmentDraft"));
+    } catch (_error) {
+        draftAssessment = null;
+    }
     if (!patient || !Number.isInteger(patient.id)) {
         patientContext.className = "alert alert-danger";
         patientContext.textContent = "No valid patient ID is available. ";
@@ -200,18 +220,52 @@
         patientContext.appendChild(link);
         submitButton.disabled = true;
     } else {
-        patientContext.textContent = (
-            `Assessment for patient ID ${patient.id}. `
-            + "Confirm the recorded evidence before submitting."
-        );
+        const contextText = document.createElement("span");
+        contextText.textContent = `Patient ${patient.name || ""} · Code ${patient.patient_code || "—"} · ID ${patient.id}. Confirm the recorded evidence before submitting.`;
+        patientContext.replaceChildren(contextText);
+        if (patient.patient_code) {
+            const copyButton = document.createElement("button");
+            copyButton.type = "button";
+            copyButton.className = "btn btn-sm btn-outline-success ms-2";
+            copyButton.textContent = "Copy code";
+            copyButton.dataset.copyText = patient.patient_code;
+            copyButton.dataset.copyStatus = "assessment-status";
+            patientContext.appendChild(copyButton);
+        }
     }
 
     categorySelect.addEventListener("change", updateCategoryVisibility);
+    modeInputs.forEach((input) => input.addEventListener("change", updateCategoryVisibility));
     document.querySelectorAll(".state-button").forEach((button) => {
         button.addEventListener("click", () => {
             updateState(button.dataset.key, button.dataset.state, button);
         });
     });
+    if (draftAssessment && draftAssessment.evidence) {
+        const draftMode = draftAssessment.workflow_mode === "unknown_trauma"
+            ? "unknown_trauma"
+            : "known_category";
+        const modeInput = modeInputs.find((input) => input.value === draftMode);
+        if (modeInput) {
+            modeInput.checked = true;
+        }
+        if (draftAssessment.category && supportedCategories.has(draftAssessment.category)) {
+            categorySelect.value = draftAssessment.category;
+        }
+        const allEvidence = {
+            ...draftAssessment.evidence,
+            ...(draftAssessment.modifier_evidence || {}),
+        };
+        for (const [key, state] of Object.entries(allEvidence)) {
+            const button = document.querySelector(
+                `.state-button[data-key="${CSS.escape(key)}"][data-state="${CSS.escape(state)}"]`,
+            );
+            if (button) {
+                updateState(key, state, button);
+            }
+        }
+        sessionStorage.removeItem("erpilotAssessmentDraft");
+    }
     addVitalButton.addEventListener("click", addVitalRow);
     updateCategoryVisibility();
 
@@ -235,10 +289,14 @@
 
         const payload = {
             patient_id: patient.id,
-            category: categorySelect.value,
+            ...(workflowMode() === "known_category"
+                ? { category: categorySelect.value }
+                : {}),
             evidence: Object.fromEntries(
                 Object.entries(states).filter(
-                    ([key]) => symptomCategories.get(key) === categorySelect.value,
+                    ([key]) => symptomCategories.get(key) !== "special_condition"
+                        && (workflowMode() === "unknown_trauma"
+                            || symptomCategories.get(key) === categorySelect.value),
                 ),
             ),
             modifier_evidence: Object.fromEntries(
@@ -256,7 +314,10 @@
         showStatus("Evaluating recorded evidence...", "info");
 
         try {
-            const response = await fetch("/api/triage", {
+            const endpoint = workflowMode() === "unknown_trauma"
+                ? "/api/triage/forward"
+                : "/api/triage";
+            const response = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
@@ -268,6 +329,7 @@
                 );
             }
             sessionStorage.setItem("erpilotLastAssessment", JSON.stringify(body));
+            sessionStorage.removeItem("erpilotAssessmentDraft");
             window.location.assign("/results");
         } catch (error) {
             showStatus(

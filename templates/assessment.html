@@ -15,14 +15,41 @@
 </section>
 
 <div id="assessment-status" class="alert d-none" role="status" aria-live="polite"></div>
-<div id="patient-context" class="context-card mb-4" role="status"></div>
+<div id="patient-context" class="context-card mb-4" role="status" aria-live="polite"></div>
 
 <form id="assessment-form" novalidate>
-    <div class="card form-card mb-4">
+    <fieldset class="card form-card mb-4">
+        <div class="card-body p-4">
+            <legend class="h2">Choose an assessment workflow</legend>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="card h-100 p-3" for="mode-unknown">
+                        <span class="form-check">
+                            <input class="form-check-input workflow-mode" type="radio"
+                                id="mode-unknown" name="workflow_mode" value="unknown_trauma">
+                            <span class="form-check-label fw-semibold">Unknown Trauma</span>
+                        </span>
+                        <span class="small text-muted mt-2">Enter symptoms and findings to discover which configured trauma categories may match. This starts from evidence and runs forward.</span>
+                    </label>
+                </div>
+                <div class="col-lg-6">
+                    <label class="card h-100 p-3" for="mode-known">
+                        <span class="form-check">
+                            <input class="form-check-input workflow-mode" type="radio"
+                                id="mode-known" name="workflow_mode" value="known_category" checked>
+                            <span class="form-check-label fw-semibold">Known Trauma Category</span>
+                        </span>
+                        <span class="small text-muted mt-2">Select a category and investigate its applicable rules and missing evidence. This works backward from the selected goal.</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    <div id="category-selector-card" class="card form-card mb-4">
         <div class="card-body p-4">
             <div class="row align-items-end g-3">
                 <div class="col-lg-7">
-                    <label class="form-label" for="category">Assessment category</label>
+                    <label class="form-label" for="category">Known assessment category</label>
                     <select
                         class="form-select"
                         id="category"
@@ -32,6 +59,7 @@
                         {% for category in categories %}
                         <option
                             value="{{ category }}"
+                            {% if category == 'brain_trauma' %}selected{% endif %}
                             {% if category not in supported_categories %}disabled{% endif %}
                         >
                             {{ category|replace('_', ' ')|title }}
@@ -44,8 +72,8 @@
                         {% endfor %}
                     </select>
                     <div id="category-help" class="form-text">
-                        Choose an available category. Special-condition
-                        modifiers are recorded separately for every assessment.
+                        Used only for Known Trauma Category. Unknown Trauma
+                        evaluates evidence across all supported categories.
                     </div>
                 </div>
                 <div class="col-lg-5">
@@ -83,17 +111,13 @@
                 class="symptom-category-panel"
                 data-category="{{ category }}"
                 aria-labelledby="heading-{{ category }}"
-                {% if category not in supported_categories %}hidden{% endif %}
+                hidden
             >
                 <div class="category-panel-heading">
                     <h3 id="heading-{{ category }}" class="h4">
                         {{ category|replace('_', ' ')|title }}
                     </h3>
-                    {% if category not in supported_categories %}
-                    <span class="badge text-bg-secondary">Unavailable</span>
-                    {% else %}
                     <span class="badge text-bg-primary">Available</span>
-                    {% endif %}
                 </div>
                 <div class="row g-3">
                     {% for symptom in symptoms %}

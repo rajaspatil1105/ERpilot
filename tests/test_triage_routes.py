@@ -1,6 +1,8 @@
 import json
+import sqlite3
 
 import pytest
+from sqlalchemy import text
 
 from app import create_app
 from models.assessment import Assessment
@@ -88,11 +90,161 @@ def test_valid_patient_registration_returns_201_and_persists(client, app):
     assert response.status_code == 201
     body = response.get_json()
     assert body["id"]
+    assert len(body["patient_code"]) == 5 and body["patient_code"].isdigit()
     assert body["name"] == "A Patient"
     with app.app_context():
         patient = db.session.get(Patient, body["id"])
         assert patient.name == "A Patient"
         assert patient.age == 42
+        assert patient.patient_code == body["patient_code"]
+
+
+def test_patient_code_is_unique_and_can_find_patient(client):
+    first = client.post(
+        "/api/patients",
+        json={"name": "First Patient", "age": 28, "gender": "Male", "incident_type": "fall"},
+    ).get_json()
+    second = client.post(
+        "/api/patients",
+        json={"name": "Second Patient", "age": 31, "gender": "Female", "incident_type": "collision"},
+    ).get_json()
+
+    assert first["patient_code"] != second["patient_code"]
+    response = client.get(f"/api/patients?search={first['patient_code']}")
+    assert [patient["id"] for patient in response.get_json()["patients"]] == [first["id"]]
+
+
+def test_forward_assessment_needs_no_category_and_persists_workflow(client, app):
+    patient_id = register_patient(client)
+    response = client.post(
+        "/api/triage/forward",
+        json={
+            "patient_id": patient_id,
+            "evidence": {
+                "adult_head_injury_post_traumatic_seizure": "PRESENT",
+                "chest_trauma_negative_chest_efast": "PRESENT",
+            },
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.get_json()
+    assert body["category"] is None
+    assert body["selected_category"] is None
+    assert body["workflow_mode"] == "unknown_trauma"
+    assert {item["rule_id"] for item in body["inference_result"]["full_matches"]} == {
+        "BT-05", "CT-01"
+    }
+    assert {item["category"] for item in body["inference_result"]["category_results"]} == {
+        "brain_trauma", "chest_trauma"
+    }
+    with app.app_context():
+        assessment = db.session.get(Assessment, body["assessment_id"])
+        assert assessment.workflow_mode == "unknown_trauma"
+        assert assessment.category == "unknown_trauma"
+        assert assessment.selected_category is None
+
+
+def test_existing_assessment_database_is_additively_migrated(tmp_path):
+    database_path = tmp_path / "legacy.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "CREATE TABLE assessments ("
+            "id INTEGER PRIMARY KEY, patient_id INTEGER NOT NULL, "
+            "category VARCHAR(100) NOT NULL, evidence_json TEXT NOT NULL, "
+            "vitals_json TEXT NOT NULL, inference_result_json TEXT NOT NULL, "
+            "created_at DATETIME NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO assessments VALUES "
+            "(1, 9, 'brain_trauma', '{}', '{}', '{}', '2026-01-01')"
+        )
+
+    application = create_app({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database_path.as_posix()}",
+    })
+    with application.app_context():
+        row = db.session.execute(
+            text(
+                "SELECT category, selected_category, workflow_mode "
+                "FROM assessments WHERE id = 1"
+            )
+        ).one()
+        assert row == ("brain_trauma", "brain_trauma", "known_category")
+
+
+def test_forward_assessment_rejects_category_and_bad_evidence(client):
+    patient_id = register_patient(client)
+    category_response = client.post(
+        "/api/triage/forward",
+        json={"patient_id": patient_id, "category": "brain_trauma", "evidence": {}},
+    )
+    invalid_response = client.post(
+        "/api/triage/forward",
+        json={"patient_id": patient_id, "evidence": {"unknown_key": "PRESENT"}},
+    )
+
+    assert category_response.status_code == 400
+    assert category_response.get_json()["field"] == "category"
+    assert invalid_response.status_code == 400
+    assert invalid_response.get_json()["field"] == "evidence"
+
+
+def test_checklist_remarks_persist_and_patient_search_loads_them(client, app):
+    patient_id = register_patient(client)
+    assessment_response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {
+                "adult_head_injury_post_traumatic_seizure": "PRESENT"
+            },
+        },
+    )
+    assert assessment_response.status_code == 201
+    assessment = assessment_response.get_json()
+    assert assessment["checklist"]
+    task = next(
+        item for item in assessment["checklist"]
+        if "urgent CT head" in item["title"]
+    )
+    task["completed"] = True
+    task["status"] = "done"
+    task["remark"] = "Requested by responsible clinician; result reviewed."
+    save_response = client.put(
+        f"/api/patients/{patient_id}/assessments/{assessment['assessment_id']}/checklist",
+        json={"items": assessment["checklist"]},
+    )
+    assert save_response.status_code == 200
+
+    search_response = client.get("/api/patients?search=Test Patient")
+    assert search_response.status_code == 200
+    assert search_response.get_json()["patients"][0]["id"] == patient_id
+    records_response = client.get(f"/api/patients/{patient_id}/records")
+    stored = records_response.get_json()["assessments"][0]["checklist"]
+    saved_task = next(item for item in stored if item["id"] == task["id"])
+    assert saved_task["completed"] is True
+    assert saved_task["remark"] == "Requested by responsible clinician; result reviewed."
+
+
+def test_checklist_cannot_be_saved_to_another_patient_assessment(client):
+    patient_id = register_patient(client)
+    assessment_response = client.post(
+        "/api/triage",
+        json={
+            "patient_id": patient_id,
+            "category": "brain_trauma",
+            "evidence": {},
+        },
+    )
+    assessment_id = assessment_response.get_json()["assessment_id"]
+    response = client.put(
+        f"/api/patients/{patient_id + 1}/assessments/{assessment_id}/checklist",
+        json={"items": []},
+    )
+    assert response.status_code == 404
 
 
 @pytest.mark.parametrize(

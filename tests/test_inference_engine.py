@@ -6,7 +6,10 @@ import pytest
 
 from inference_engine.backward_chaining import run_backward_chaining
 from inference_engine.explainer import explain_match
-from inference_engine.forward_chaining import run_forward_chaining
+from inference_engine.forward_chaining import (
+    run_forward_chaining,
+    run_forward_inference,
+)
 from inference_engine.rule_matcher import (
     ABSENT,
     FULL_MATCH,
@@ -188,6 +191,29 @@ def test_backward_chaining_finds_exact_supported_target():
     assert result["no_support"] is False
     assert result["candidate_rule_ids"] == ["TEST-01"]
     assert result["evaluations"][0]["match_status"] == FULL_MATCH
+
+
+def test_forward_inference_derives_configured_conclusion_from_evidence():
+    rule = _rule(conditions=["condition_one"], conclusion="configured_outcome")
+    result = run_forward_inference([rule], {"condition_one": PRESENT})
+
+    assert result["fired_rules"][0]["rule_id"] == "TEST-01"
+    assert result["derived_conclusions"] == [{
+        "category": "brain_trauma", "conclusion": "configured_outcome"
+    }]
+    assert result["category_results"][0]["rule_ids"] == ["TEST-01"]
+    assert result["trace"][0]["satisfied_prerequisites"] == ["condition_one"]
+
+
+def test_forward_inference_does_not_fire_unknown_or_missing_prerequisite():
+    rule = _rule()
+    result = run_forward_inference([rule], {})
+
+    assert result["fired_rules"] == []
+    assert result["derived_conclusions"] == []
+    assert result["unresolved_rules"][0]["match_status"] == NO_MATCH
+    assert result["unresolved_rules"][0]["unknown_conditions"] == ["condition_one"]
+    assert "no_matches" in result
 
 
 def test_backward_chaining_reports_partial_and_no_match_candidates():
